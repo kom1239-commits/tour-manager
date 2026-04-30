@@ -470,7 +470,7 @@ tr:hover{background:rgba(56,189,248,.05)}
     <div id="libStatus" style="margin-bottom:14px;padding:8px 12px;border-radius:6px;font-size:12px;font-family:Consolas,monospace"></div>
 
     <input id="pic_camera" type="file" accept="image/*" capture="environment" onchange="pickHandler(this)" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
-    <input id="pic_file" type="file" accept=".docx,.pdf,.jpg,.jpeg,.png,.webp,.bmp,.txt,image/*" onchange="pickHandler(this)" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+    <input id="pic_file" type="file" accept=".docx,.doc,.pdf,.txt,.jpg,.jpeg,.png,.webp,.bmp,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/pdf,text/plain,image/jpeg,image/png,image/webp,image/bmp" onchange="pickHandler(this)" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
 
     <div class="grid3" style="gap:10px;margin-bottom:16px">
       <label for="pic_camera" class="big-pick" style="background:var(--accent);color:#fff">
@@ -2199,7 +2199,7 @@ function renderHotelStays(){
         <div class="row" style="margin-bottom:6px;flex-wrap:wrap;gap:6px">
           <strong style="font-size:12px">객실 구성 + 투숙객 명단</strong>
           <button class="icon-btn" onclick="addRoom(${i})">+ 객실 추가</button>
-          <input type="file" id="roomingFile_${i}" accept=".docx,.pdf,.txt,image/*" onchange="importRoomingForStay(${i},this)" style="display:none">
+          <input type="file" id="roomingFile_${i}" accept=".docx,.doc,.pdf,.txt,.jpg,.jpeg,.png,.webp,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/pdf,text/plain,image/jpeg,image/png,image/webp" onchange="importRoomingForStay(${i},this)" style="display:none">
           <button class="icon-btn" style="background:var(--info);color:#fff;border-color:var(--info)" onclick="document.getElementById('roomingFile_${i}').click()">📂 명단 파일 가져오기</button>
         </div>
         <div class="muted" style="font-size:11px;margin-bottom:8px">💡 워드/PDF/이미지/TXT의 룸잉리스트(예: "Twin 1: 이름1 / 이름2") 자동 인식하여 객실별 분배. 비구조화 명단도 자동 처리.</div>
@@ -3792,16 +3792,4 @@ updateBaseCurrencyDisplay();
 renderDashboard();
 
 // ============== PWA SERVICE WORKER (안전한 버전) ==============
-if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=>{
-    try{
-      navigator.serviceWorker.register('service-worker.js').catch(err=>{
-        console.log('SW 등록 실패 (무시 가능):', err);
-      });
-    }catch(e){}
-  });
-}
-</script>
-</body>
-</html>
-                                                               
+if('serviceWorke
