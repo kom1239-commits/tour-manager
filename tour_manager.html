@@ -3797,7 +3797,28 @@ function ensureSeed(){
 }
 
 // ============== INIT ==============
-ensureSeed();
-updateBaseCurrencyDisplay();
-renderDashboard();
+// Surface JS errors visibly on mobile (otherwise tapping silently does nothing)
+window.addEventListener('error', e=>{
+  let box = document.getElementById('errorBanner');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'errorBanner';
+    box.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#dc2626;color:#fff;padding:10px 14px;font-size:12px;z-index:9999;font-family:Consolas,monospace;white-space:pre-wrap;max-height:40vh;overflow:auto;box-shadow:0 4px 12px rgba(0,0,0,.4)';
+    box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div style="flex:1"><strong>⚠️ 앱 오류 — 비상 초기화 페이지로 이동하세요</strong><div id="errMsg" style="margin-top:6px"></div><a href="./reset.html" style="display:inline-block;margin-top:8px;background:#fff;color:#dc2626;padding:6px 12px;border-radius:6px;text-decoration:none;font-weight:700">🚨 reset.html 열기</a></div><button onclick="this.closest(\'#errorBanner\').remove()" style="background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer">×</button></div>';
+    document.body && document.body.appendChild(box);
+  }
+  const m = document.getElementById('errMsg');
+  if(m) m.textContent = (e.message||'')+' @ '+(e.filename||'').split('/').pop()+':'+e.lineno;
+});
 
+try{
+  ensureSeed();
+  updateBaseCurrencyDisplay();
+  renderDashboard();
+}catch(e){
+  console.error(e);
+  window.dispatchEvent(new ErrorEvent('error',{message:e.message,filename:'init',lineno:0}));
+}
+</script>
+</body>
+</html>
