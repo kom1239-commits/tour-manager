@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="투어관리">
 <meta name="application-name" content="투어관리">
 <meta name="mobile-web-app-capable" content="yes">
@@ -19,9 +19,9 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 :root{
-  --bg:#0f172a; --panel:#1e293b; --panel2:#273548; --line:#334155;
-  --text:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; --accent2:#22d3ee;
-  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444; --info:#a78bfa;
+  --bg:#f8fafc; --panel:#ffffff; --panel2:#f1f5f9; --line:#e2e8f0;
+  --text:#0f172a; --muted:#64748b; --accent:#0284c7; --accent2:#0ea5e9;
+  --good:#16a34a; --warn:#ea580c; --bad:#dc2626; --info:#7c3aed;
   --c1:#ef4444; --c2:#f97316; --c3:#eab308; --c4:#22c55e; --c5:#06b6d4;
   --c6:#3b82f6; --c7:#8b5cf6; --c8:#ec4899; --c9:#14b8a6; --c10:#f43f5e;
 }
@@ -29,13 +29,13 @@
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   background:var(--bg);color:var(--text);font-size:14px}
 button{font-family:inherit;cursor:pointer;border:none;border-radius:6px;padding:8px 14px;font-size:13px;font-weight:500;transition:all .15s}
-button.primary{background:var(--accent);color:#0f172a}
+button.primary{background:var(--accent);color:#fff}
 button.primary:hover{background:var(--accent2)}
-button.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+button.ghost{background:#fff;color:var(--text);border:1px solid var(--line)}
 button.ghost:hover{background:var(--panel2)}
 button.danger{background:var(--bad);color:#fff}
-button.warn{background:var(--warn);color:#0f172a}
-button.good{background:var(--good);color:#0f172a}
+button.warn{background:var(--warn);color:#fff}
+button.good{background:var(--good);color:#fff}
 input,select,textarea{font-family:inherit;font-size:13px;background:var(--panel2);color:var(--text);
   border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
@@ -45,14 +45,14 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-wei
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-header{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:20;flex-wrap:wrap;gap:8px}
-header h1{margin:0;font-size:14px;font-weight:600;white-space:nowrap}
-header h1 small{color:var(--muted);font-weight:400;margin-left:6px;font-size:11px}
-header .row{flex-wrap:wrap;gap:4px}
-header button{padding:5px 9px;font-size:11px}
-header .cur-btn{padding:5px 8px;font-size:11px;min-width:42px}
-.tabs{display:flex;gap:2px;background:var(--panel);padding:0 10px;border-bottom:1px solid var(--line);flex-wrap:wrap;position:sticky;top:49px;z-index:19}
-.tab{padding:10px 10px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-size:12px;font-weight:500}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:20;flex-wrap:wrap;gap:10px}
+header h1{margin:0;font-size:20px;font-weight:700;white-space:nowrap;color:var(--accent)}
+header h1 small{color:var(--muted);font-weight:400;margin-left:8px;font-size:13px}
+header .row{flex-wrap:wrap;gap:6px}
+header button{padding:8px 14px;font-size:13px;font-weight:600}
+header .cur-btn{padding:8px 12px;font-size:13px;min-width:54px;font-weight:700}
+.tabs{display:flex;gap:4px;background:var(--panel);padding:0 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;position:sticky;top:65px;z-index:19}
+.tab{padding:14px 16px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;font-size:14px;font-weight:600}
 .tab:hover{color:var(--text)}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
 main{padding:20px 24px;max-width:1600px;margin:0 auto}
@@ -66,12 +66,12 @@ th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line)}
 th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600;background:var(--panel2)}
 tr:hover{background:rgba(56,189,248,.05)}
 .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500;background:var(--panel2);color:var(--text)}
-.badge.confirmed{background:#22c55e22;color:#86efac}
-.badge.tentative{background:#eab30822;color:#fde047}
-.badge.progress{background:#3b82f622;color:#93c5fd}
-.badge.completed{background:#94a3b822;color:#cbd5e1}
-.badge.cancelled{background:#ef444422;color:#fca5a5}
-.badge.unpaid{background:#ef444422;color:#fca5a5}
+.badge.confirmed{background:#dcfce7;color:#15803d}
+.badge.tentative{background:#fef9c3;color:#854d0e}
+.badge.progress{background:#dbeafe;color:#1e40af}
+.badge.completed{background:#f1f5f9;color:#475569}
+.badge.cancelled{background:#fee2e2;color:#991b1b}
+.badge.unpaid{background:#fee2e2;color:#991b1b}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
 .muted{color:var(--muted)}
 .right{text-align:right}
@@ -102,11 +102,11 @@ tr:hover{background:rgba(56,189,248,.05)}
 .close-x{background:transparent;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0;width:30px;height:30px}
 
 /* Stats */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px}
-.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
-.stat .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
-.stat .val{font-size:22px;font-weight:700;margin-top:6px}
-.stat .sub{font-size:11px;color:var(--muted);margin-top:4px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.stat .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.stat .val{font-size:16px;font-weight:700;margin-top:3px;line-height:1.2}
+.stat .sub{font-size:10px;color:var(--muted);margin-top:2px}
 
 /* Sub-sections */
 .sub{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px}
@@ -123,8 +123,8 @@ tr:hover{background:rgba(56,189,248,.05)}
 .swatch.sel{border-color:#fff}
 
 /* Conflict banner */
-.conflict-banner{background:#f59e0b22;border:1px solid var(--warn);color:#fde68a;padding:10px;border-radius:6px;margin-bottom:10px;font-size:12px}
-.conflict-banner.hard{background:#ef444422;border-color:var(--bad);color:#fecaca}
+.conflict-banner{background:#f59e0b22;border:1px solid var(--warn);color:#854d0e;padding:10px;border-radius:6px;margin-bottom:10px;font-size:12px}
+.conflict-banner.hard{background:#ef444422;border-color:var(--bad);color:#991b1b}
 .warn-icon{display:inline;color:var(--warn);font-weight:bold}
 
 /* Bars */
@@ -140,21 +140,21 @@ tr:hover{background:rgba(56,189,248,.05)}
 .detail-row .v{flex:1;font-size:13px}
 
 /* Email preview */
-.email-preview{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:16px;font-family:"Consolas","Monaco",monospace;font-size:13px;white-space:pre-wrap;color:#e2e8f0;line-height:1.6;max-height:520px;overflow:auto}
+.email-preview{background:#f1f5f9;border:1px solid var(--line);border-radius:8px;padding:16px;font-family:"Consolas","Monaco",monospace;font-size:13px;white-space:pre-wrap;color:#0f172a;line-height:1.6;max-height:520px;overflow:auto}
 
 /* Misc */
 .empty{padding:30px;text-align:center;color:var(--muted)}
 .search-bar{display:flex;gap:8px;margin-bottom:14px}
 .search-bar input{flex:1}
 .tag{display:inline-block;background:var(--panel2);color:var(--muted);padding:2px 8px;border-radius:4px;font-size:11px;margin-right:4px}
-.copy-flash{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--good);color:#0f172a;padding:10px 20px;border-radius:6px;font-weight:600;display:none;z-index:200}
+.copy-flash{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--good);color:#fff;padding:10px 20px;border-radius:6px;font-weight:600;display:none;z-index:200}
 .copy-flash.show{display:block;animation:fadeOut 2s ease forwards}
 @keyframes fadeOut{0%{opacity:1}80%{opacity:1}100%{opacity:0}}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
 .range-day{padding:10px 4px;text-align:center;cursor:pointer;border-radius:6px;font-size:13px;background:var(--panel2);color:var(--text);user-select:none;transition:all .1s}
 .range-day:hover{background:#0c4a6e66}
 .range-day.other-month{opacity:.3}
-.range-day.range-start,.range-day.range-end{background:var(--accent)!important;color:#0f172a!important;font-weight:700}
+.range-day.range-start,.range-day.range-end{background:var(--accent)!important;color:#fff!important;font-weight:700}
 .range-day.range-mid{background:#0c4a6eaa;color:#fff}
 .range-day.range-today{box-shadow:inset 0 0 0 2px var(--info)}
 .date-pick-btn{width:100%;padding:12px 14px;text-align:left;font-size:13px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;cursor:pointer;color:var(--text);font-family:inherit}
@@ -175,11 +175,11 @@ tr:hover{background:rgba(56,189,248,.05)}
 }
 .toggle-link{color:var(--accent);cursor:pointer;text-decoration:underline;font-size:12px}
 .warning-line{color:var(--warn);font-size:12px}
-.doc-tab.active{background:var(--accent);color:#0f172a;border-color:var(--accent)}
+.doc-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .alert-banner{padding:10px 14px;border-radius:8px;margin-bottom:10px;font-size:13px}
-.alert-red{background:#ef444422;border:1px solid var(--bad);color:#fecaca}
-.alert-yellow{background:#f59e0b22;border:1px solid var(--warn);color:#fde68a}
-.alert-blue{background:#3b82f622;border:1px solid #3b82f6;color:#bfdbfe}
+.alert-red{background:#ef444422;border:1px solid var(--bad);color:#991b1b}
+.alert-yellow{background:#f59e0b22;border:1px solid var(--warn);color:#854d0e}
+.alert-blue{background:#3b82f622;border:1px solid #3b82f6;color:#1e40af}
 
 @media(max-width:780px){
   .grid2,.grid3,.grid4{grid-template-columns:1fr}
@@ -187,26 +187,24 @@ tr:hover{background:rgba(56,189,248,.05)}
   .cal-day{min-height:70px;padding:3px}
   .cal-evt{font-size:10px;padding:1px 3px}
   header h1 small{display:none}
-  header h1{font-size:13px}
-  .tab{padding:8px 8px;font-size:11px}
-  header .cur-btn{min-width:36px;padding:4px 6px}
+  header h1{font-size:18px}
+  .tab{padding:12px 12px;font-size:13px}
+  header .cur-btn{min-width:46px;padding:6px 8px;font-size:12px}
   .stats{grid-template-columns:1fr 1fr}
-  .stat .val{font-size:18px}
+  .stat .val{font-size:15px}
   table{font-size:12px}
   th,td{padding:6px 6px}
 }
 @media(max-width:480px){
-  header h1{font-size:12px}
-  header h1::before{content:"KEDC";}
-  header h1 .full-title{display:none}
-  .tab{padding:7px 6px;font-size:10px}
+  header h1{font-size:16px}
+  .tab{padding:10px 10px;font-size:12px}
 }
 </style>
 </head>
 <body>
 
 <header>
-  <h1><span class="full-title">Kim Elena's Dental Centre</span> <small>투어 관리</small></h1>
+  <h1><span class="full-title">일정요약 앱</span></h1>
   <div class="row">
     <span class="muted" style="font-size:11px">기준 통화:</span>
     <button class="cur-btn ghost" data-cur="KZT" onclick="quickSwitchBaseCurrency('KZT')">KZT</button>
@@ -475,7 +473,7 @@ tr:hover{background:rgba(56,189,248,.05)}
     <input id="pic_file" type="file" accept=".docx,.pdf,.jpg,.jpeg,.png,.webp,.bmp,.txt,image/*" onchange="pickHandler(this)" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
 
     <div class="grid3" style="gap:10px;margin-bottom:16px">
-      <label for="pic_camera" class="big-pick" style="background:var(--accent);color:#0f172a">
+      <label for="pic_camera" class="big-pick" style="background:var(--accent);color:#fff">
         <div class="big-icon">📷</div>
         <div class="big-label">카메라로 촬영</div>
         <div class="big-sub">사진 OCR</div>
@@ -485,7 +483,7 @@ tr:hover{background:rgba(56,189,248,.05)}
         <div class="big-label">파일 선택</div>
         <div class="big-sub">워드·PDF·이미지</div>
       </label>
-      <button type="button" class="big-pick" style="background:#22c55e;color:#0f172a;border:none" onclick="document.getElementById('pasteText').focus();document.getElementById('pasteText').scrollIntoView({behavior:'smooth',block:'center'})">
+      <button type="button" class="big-pick" style="background:#22c55e;color:#fff;border:none" onclick="document.getElementById('pasteText').focus();document.getElementById('pasteText').scrollIntoView({behavior:'smooth',block:'center'})">
         <div class="big-icon">📝</div>
         <div class="big-label">텍스트 입력</div>
         <div class="big-sub">복사·붙여넣기</div>
@@ -1005,7 +1003,7 @@ function buildTeamMonthlyCard(t){
   if(t.vehicle) html += `<div>🚌 ${escapeHtml(t.vehicle)}</div>`;
   if(rev>0 || paid>0){
     if(balance===0)html += `<div>💰 ${fmtMoney(rev,db.settings.baseCurrency)} · 완납 ✓</div>`;
-    else if(balance>0)html += `<div>💰 견적 ${fmtMoney(rev,db.settings.baseCurrency)} / 입금 ${fmtMoney(paid,db.settings.baseCurrency)} / <span style="color:#fca5a5">잔액 ${fmtMoney(balance,db.settings.baseCurrency)}</span></div>`;
+    else if(balance>0)html += `<div>💰 견적 ${fmtMoney(rev,db.settings.baseCurrency)} / 입금 ${fmtMoney(paid,db.settings.baseCurrency)} / <span style="color:#dc2626">잔액 ${fmtMoney(balance,db.settings.baseCurrency)}</span></div>`;
     else html += `<div>💰 선불 ${fmtMoney(paid,db.settings.baseCurrency)} / 잔액 ${fmtMoney(balance,db.settings.baseCurrency)}</div>`;
   }
   if(guides) html += `<div>🧭 가이드 ${guides}</div>`;
@@ -1716,11 +1714,11 @@ function detectPlaces(text){
 function renderDetected(){
   const dEl = document.getElementById('detectedDates');
   dEl.innerHTML = _detected.dates.length
-    ? _detected.dates.map(d=>`<span class="tag" style="cursor:pointer;background:var(--accent);color:#0f172a" onclick="setImportRange('${d}')">${d}</span>`).join(' ')
+    ? _detected.dates.map(d=>`<span class="tag" style="cursor:pointer;background:var(--accent);color:#fff" onclick="setImportRange('${d}')">${d}</span>`).join(' ')
     : '<span class="muted" style="font-size:12px">자동 인식 안됨 - 아래에서 직접 입력하세요</span>';
   const hEl = document.getElementById('detectedHotels');
   hEl.innerHTML = _detected.hotels.length
-    ? _detected.hotels.map(h=>`<span class="tag" style="background:#22c55e22;color:#86efac">✓ ${escapeHtml(h.name)}</span>`).join(' ')
+    ? _detected.hotels.map(h=>`<span class="tag" style="background:#22c55e22;color:#15803d">✓ ${escapeHtml(h.name)}</span>`).join(' ')
     : '<span class="muted" style="font-size:12px">매칭된 호텔 없음 - 새 호텔이라면 🏨 호텔 탭에서 먼저 등록하시거나 아래에서 비워두세요</span>';
   const pEl = document.getElementById('detectedPlaces');
   pEl.innerHTML = _detected.places.length
@@ -1867,7 +1865,7 @@ function showToast(msg){
   if(!el){
     el = document.createElement('div');
     el.id='appToast';
-    el.style.cssText = 'position:fixed;top:80px;right:30px;background:var(--good);color:#0f172a;padding:14px 20px;border-radius:8px;font-weight:600;font-size:14px;z-index:300;box-shadow:0 6px 20px rgba(0,0,0,.4);max-width:360px';
+    el.style.cssText = 'position:fixed;top:80px;right:30px;background:var(--good);color:#fff;padding:14px 20px;border-radius:8px;font-weight:600;font-size:14px;z-index:300;box-shadow:0 6px 20px rgba(0,0,0,.4);max-width:360px';
     document.body.appendChild(el);
   }
   el.textContent = msg;
@@ -2062,12 +2060,12 @@ function teamFormHtml(t){
     </div>
 
     <div class="sub">
-      <div class="sub-head"><h4>🏨 호텔 숙박 <span class="muted" style="font-weight:400;font-size:11px">(여러 호텔 가능 — 도시 이동 시 호텔별로 따로 등록)</span></h4><button class="icon-btn" onclick="addHotelStay()" style="background:var(--accent);color:#0f172a;border-color:var(--accent)">+ 호텔 추가</button></div>
+      <div class="sub-head"><h4>🏨 호텔 숙박 <span class="muted" style="font-weight:400;font-size:11px">(여러 호텔 가능 — 도시 이동 시 호텔별로 따로 등록)</span></h4><button class="icon-btn" onclick="addHotelStay()" style="background:var(--accent);color:#fff;border-color:var(--accent)">+ 호텔 추가</button></div>
       <div id="hotelStaysList"></div>
     </div>
 
     <div class="sub">
-      <div class="sub-head"><h4>🧭 가이드 배정 <span class="muted" style="font-weight:400;font-size:11px">(여러 가이드 · 날짜별 분담 가능)</span></h4><button class="icon-btn" onclick="addGuideAssign()" style="background:var(--accent);color:#0f172a;border-color:var(--accent)">+ 가이드 추가</button></div>
+      <div class="sub-head"><h4>🧭 가이드 배정 <span class="muted" style="font-weight:400;font-size:11px">(여러 가이드 · 날짜별 분담 가능)</span></h4><button class="icon-btn" onclick="addGuideAssign()" style="background:var(--accent);color:#fff;border-color:var(--accent)">+ 가이드 추가</button></div>
       <div id="guideAssignList"></div>
     </div>
 
@@ -2188,7 +2186,7 @@ function renderHotelStays(){
         <div class="row" style="gap:4px">
           ${i>0?`<button class="icon-btn" onclick="moveHotelStay(${i},-1)" title="위로">↑</button>`:''}
           ${i<total-1?`<button class="icon-btn" onclick="moveHotelStay(${i},1)" title="아래로">↓</button>`:''}
-          <button class="icon-btn" style="background:#ef444433;color:#fca5a5;border-color:var(--bad)" onclick="removeHotelStay(${i})">🗑️ 삭제</button>
+          <button class="icon-btn" style="background:#ef444433;color:#dc2626;border-color:var(--bad)" onclick="removeHotelStay(${i})">🗑️ 삭제</button>
         </div>
       </div>
       <div class="field"><label>호텔명 <span class="muted" style="font-weight:400;font-size:11px">(클릭하면 기존 호텔 목록 · 새 이름이면 자동 등록)</span></label>
@@ -2712,7 +2710,7 @@ function renderTeamsTable(){
         <td>${statusBadge(t.status)}</td>
         <td>${escapeHtml(hotels)}</td>
         <td>${escapeHtml(guides)}</td>
-        <td class="right" ${bal>0?'style="color:#fca5a5"':''}>${fmtMoney(bal,db.settings.baseCurrency)}</td>
+        <td class="right" ${bal>0?'style="color:#dc2626"':''}>${fmtMoney(bal,db.settings.baseCurrency)}</td>
         <td><button class="icon-btn" onclick="openTeamModal('${t.id}')">편집</button></td>
       </tr>`;
     }).join('')}</tbody></table>`;
@@ -2860,7 +2858,7 @@ function renderClientsTable(){
         <td><strong style="color:var(--accent)">${escapeHtml(c.name)}</strong></td>
         <td>${escapeHtml(c.contact||'-')}</td>
         <td>${teams.length}</td><td class="right">${fmtMoney(rev,db.settings.baseCurrency)}</td>
-        <td class="right" ${bal>0?'style="color:#fca5a5"':''}>${fmtMoney(bal,db.settings.baseCurrency)}</td>
+        <td class="right" ${bal>0?'style="color:#dc2626"':''}>${fmtMoney(bal,db.settings.baseCurrency)}</td>
         <td><button class="icon-btn" onclick="event.stopPropagation();openClientModal('${c.id}')">편집</button></td></tr>`;
     }).join('')}</tbody></table>`;
 }
@@ -2886,10 +2884,10 @@ function renderCompactTeamRow(t){
       <span class="tag">🏨 ${escapeHtml(hotels)}</span>
       <span class="tag">🧭 ${escapeHtml(guides)}</span>
       ${places?`<span class="tag">📍 ${escapeHtml(places)}</span>`:''}
-      <span class="tag" style="background:#f59e0b22;color:#fde047">💰 ${fmtMoney(t.quote?.amount,t.quote?.currency)}</span>
+      <span class="tag" style="background:#f59e0b22;color:#a16207">💰 ${fmtMoney(t.quote?.amount,t.quote?.currency)}</span>
       ${bal>0
-        ?`<span class="tag" style="background:#ef444422;color:#fca5a5">잔액 ${fmtMoney(bal,db.settings.baseCurrency)}</span>`
-        :'<span class="tag" style="background:#22c55e22;color:#86efac">완납</span>'}
+        ?`<span class="tag" style="background:#ef444422;color:#dc2626">잔액 ${fmtMoney(bal,db.settings.baseCurrency)}</span>`
+        :'<span class="tag" style="background:#22c55e22;color:#15803d">완납</span>'}
     </div>
   </div>`;
 }
@@ -2914,7 +2912,7 @@ function showClientDetail(clientId){
     <div class="stats" style="margin-top:14px">
       <div class="stat"><div class="lbl">총 팀수</div><div class="val">${teams.length}팀</div></div>
       <div class="stat"><div class="lbl">총 매출</div><div class="val">${fmtMoney(totalRev,db.settings.baseCurrency)}</div></div>
-      <div class="stat"><div class="lbl">입금 완료</div><div class="val" style="color:#86efac">${fmtMoney(totalPaid,db.settings.baseCurrency)}</div></div>
+      <div class="stat"><div class="lbl">입금 완료</div><div class="val" style="color:#15803d">${fmtMoney(totalPaid,db.settings.baseCurrency)}</div></div>
       <div class="stat"><div class="lbl">미수금</div><div class="val" style="color:${balance>0?'#fca5a5':'inherit'}">${fmtMoney(balance,db.settings.baseCurrency)}</div></div>
     </div>
     <h3 style="margin-top:20px">진행 팀 목록 (최근순) — 클릭하면 편집 가능</h3>
@@ -2987,7 +2985,7 @@ function showGuideDetail(guideId){
     <div class="stats" style="margin-top:14px">
       <div class="stat"><div class="lbl">담당 팀수</div><div class="val">${teams.length}팀</div></div>
       <div class="stat"><div class="lbl">총 투입일</div><div class="val">${totalDays}일</div></div>
-      <div class="stat"><div class="lbl">지급 완료</div><div class="val" style="color:#86efac">${fmtMoney(paidTotal,db.settings.baseCurrency)}</div></div>
+      <div class="stat"><div class="lbl">지급 완료</div><div class="val" style="color:#15803d">${fmtMoney(paidTotal,db.settings.baseCurrency)}</div></div>
       <div class="stat"><div class="lbl">미지급 가이드비</div><div class="val" style="color:${unpaidTotal>0?'#fca5a5':'inherit'}">${fmtMoney(unpaidTotal,db.settings.baseCurrency)}</div></div>
     </div>
     <h3 style="margin-top:20px">활동 팀 목록 (최근순) — 클릭하면 편집 가능</h3>
@@ -3120,9 +3118,9 @@ function renderTeamDetail(t){
     <div class="detail-row"><div class="k">가이드</div><div class="v">${guideHtml}</div></div>
     <div class="detail-row"><div class="k">견적</div><div class="v">${fmtMoney(t.quote?.amount,t.quote?.currency)}</div></div>
     <div class="detail-row"><div class="k">입금이력</div><div class="v">${payHtml}</div></div>
-    <div class="detail-row"><div class="k">미수금 (${db.settings.baseCurrency} 환산)</div><div class="v" ${bal>0?'style="color:#fca5a5;font-weight:bold"':''}>${fmtMoney(bal,db.settings.baseCurrency)}</div></div>
+    <div class="detail-row"><div class="k">미수금 (${db.settings.baseCurrency} 환산)</div><div class="v" ${bal>0?'style="color:#dc2626;font-weight:bold"':''}>${fmtMoney(bal,db.settings.baseCurrency)}</div></div>
     <div class="detail-row"><div class="k">예상 비용</div><div class="v">${fmtMoney(cost,db.settings.baseCurrency)}</div></div>
-    <div class="detail-row"><div class="k">예상 이익</div><div class="v" ${profit<0?'style="color:#fca5a5"':'style="color:#86efac"'}>${fmtMoney(profit,db.settings.baseCurrency)} (${rev>0?Math.round(profit/rev*100):0}%)</div></div>
+    <div class="detail-row"><div class="k">예상 이익</div><div class="v" ${profit<0?'style="color:#dc2626"':'style="color:#15803d"'}>${fmtMoney(profit,db.settings.baseCurrency)} (${rev>0?Math.round(profit/rev*100):0}%)</div></div>
     ${(t.visitPlaces||[]).length?`<div class="detail-row"><div class="k">방문지</div><div class="v">${(t.visitPlaces||[]).map(p=>`<span class="tag">${escapeHtml(p)}</span>`).join(' ')}</div></div>`:''}
     ${(t.attachments||[]).length?`<div class="detail-row"><div class="k">첨부파일</div><div class="v">${(t.attachments||[]).map(a=>`<a href="${a.dataUrl}" download="${escapeHtml(a.name)}" style="color:var(--accent);text-decoration:underline;font-size:12px;margin-right:8px">📎 ${escapeHtml(a.name)}</a>`).join('')}</div></div>`:''}
     ${t.notes?`<div class="detail-row"><div class="k">메모</div><div class="v" style="white-space:pre-wrap;font-size:12px">${escapeHtml(t.notes)}</div></div>`:''}
@@ -3153,8 +3151,8 @@ function renderFinance(){
 
   document.getElementById('finStats').innerHTML = `
     <div class="stat"><div class="lbl">총 매출</div><div class="val">${fmtMoney(totalRev,db.settings.baseCurrency)}</div></div>
-    <div class="stat"><div class="lbl">입금 완료</div><div class="val" style="color:#86efac">${fmtMoney(totalPaid,db.settings.baseCurrency)}</div></div>
-    <div class="stat"><div class="lbl">미수금 합계</div><div class="val" style="color:#fca5a5">${fmtMoney(totalUnpaid,db.settings.baseCurrency)}</div></div>
+    <div class="stat"><div class="lbl">입금 완료</div><div class="val" style="color:#15803d">${fmtMoney(totalPaid,db.settings.baseCurrency)}</div></div>
+    <div class="stat"><div class="lbl">미수금 합계</div><div class="val" style="color:#dc2626">${fmtMoney(totalUnpaid,db.settings.baseCurrency)}</div></div>
     <div class="stat"><div class="lbl">예상 비용</div><div class="val">${fmtMoney(totalCost,db.settings.baseCurrency)}</div></div>
     <div class="stat"><div class="lbl">예상 이익</div><div class="val" style="color:${totalRev-totalCost>0?'#86efac':'#fca5a5'}">${fmtMoney(totalRev-totalCost,db.settings.baseCurrency)}</div></div>
   `;
@@ -3173,7 +3171,7 @@ function renderFinance(){
         <td>${t.arrivalDate}~${t.departureDate}</td>
         <td class="right">${fmtMoney(rev,db.settings.baseCurrency)}</td>
         <td class="right">${fmtMoney(paid,db.settings.baseCurrency)}</td>
-        <td class="right" ${bal>0?'style="color:#fca5a5;font-weight:bold"':''}>${fmtMoney(bal,db.settings.baseCurrency)}</td>
+        <td class="right" ${bal>0?'style="color:#dc2626;font-weight:bold"':''}>${fmtMoney(bal,db.settings.baseCurrency)}</td>
         <td class="right">${fmtMoney(cost,db.settings.baseCurrency)}</td>
         <td class="right" style="color:${margin>20?'#86efac':margin>0?'#fde047':'#fca5a5'}">${margin}%</td>
         <td><button class="icon-btn" onclick="openTeamModal('${t.id}')">상세</button></td>
@@ -3641,7 +3639,7 @@ function renderDashboard(){
 
   document.getElementById('dashStats').innerHTML = `
     <div class="stat"><div class="lbl">이번 달 매출</div><div class="val">${fmtMoney(revThis,db.settings.baseCurrency)}</div><div class="sub">${teamsThisMonth.length}개 팀</div></div>
-    <div class="stat"><div class="lbl">총 미수금</div><div class="val" style="color:#fca5a5">${fmtMoney(unpaid,db.settings.baseCurrency)}</div><div class="sub">${unpaidTeams}개 팀 미수금 잔존</div></div>
+    <div class="stat"><div class="lbl">총 미수금</div><div class="val" style="color:#dc2626">${fmtMoney(unpaid,db.settings.baseCurrency)}</div><div class="sub">${unpaidTeams}개 팀 미수금 잔존</div></div>
     <div class="stat"><div class="lbl">진행중 팀</div><div class="val">${db.teams.filter(t=>t.status==='progress').length}</div><div class="sub">전체 ${db.teams.length}팀</div></div>
     <div class="stat"><div class="lbl">D-7 이내 도착</div><div class="val" style="color:${upcoming.length?'#fde047':'#94a3b8'}">${upcoming.length}</div><div class="sub">곧 시작</div></div>
   `;
@@ -3661,7 +3659,7 @@ function renderDashboard(){
     const bal = computeBalanceBase(t);
     return `<div class="list-row" onclick="openTeamModal('${t.id}')" style="cursor:pointer">
       <div class="row" style="justify-content:space-between"><strong>${escapeHtml(t.name)}</strong>
-      <strong style="color:#fca5a5">${fmtMoney(bal,db.settings.baseCurrency)}</strong></div>
+      <strong style="color:#dc2626">${fmtMoney(bal,db.settings.baseCurrency)}</strong></div>
       <div class="muted" style="font-size:12px">${escapeHtml(clientName(t.clientId))} · ${t.arrivalDate}</div></div>`;
   }).join('') : '<div class="empty">미수금이 없습니다. 👍</div>';
 
@@ -3719,7 +3717,7 @@ function renderDashboard(){
   document.getElementById('guideStats').innerHTML = gList.length ? `<table>
     <thead><tr><th>가이드</th><th>총 투입일</th><th class="right">미지급 가이드비</th></tr></thead>
     <tbody>${gList.map(g=>`<tr><td>${escapeHtml(guideName(g.id))}</td><td>${g.days}일</td>
-      <td class="right" ${g.unpaid>0?'style="color:#fca5a5"':''}>${fmtMoney(g.unpaid,db.settings.baseCurrency)}</td></tr>`).join('')}</tbody>
+      <td class="right" ${g.unpaid>0?'style="color:#dc2626"':''}>${fmtMoney(g.unpaid,db.settings.baseCurrency)}</td></tr>`).join('')}</tbody>
     </table>` : '<div class="empty">데이터가 없습니다.</div>';
 }
 
@@ -3804,3 +3802,4 @@ if('serviceWorker' in navigator){
 </script>
 </body>
 </html>
+                                                                                     
