@@ -1,6 +1,6 @@
 // 투어 관리 시스템 — 오프라인 지원 (Cache-first 전략)
 // 캐시 버전 변경 시 모든 사용자가 새 버전을 받음
-const CACHE = 'tour-manager-v4';
+const CACHE = 'tour-manager-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -15,6 +15,7 @@ self.addEventListener('install', e=>{
       // 일부 파일이 없어도 계속 설치
     }))
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', e=>{
@@ -50,4 +51,4 @@ self.addEventListener('fetch', e=>{
         }
         return resp;
       }).catch(()=>{
-        // 오프라인 fallback - 메인 페이지 
+        // 오프라인 fallba

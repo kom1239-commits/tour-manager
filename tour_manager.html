@@ -3791,11 +3791,17 @@ ensureSeed();
 updateBaseCurrencyDisplay();
 renderDashboard();
 
-// ============== PWA SERVICE WORKER ==============
+// ============== PWA SERVICE WORKER (안전한 버전) ==============
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('service-worker.js').then(reg=>{
-      // 새 버전이 있으면 자동으로 활성화하고 페이지 새로고침
-      reg.addEventListener('updatefound', ()=>{
-        const newSW = reg.installing;
-        newSW?.addEventListener('statechange',
+    try{
+      navigator.serviceWorker.register('service-worker.js').catch(err=>{
+        console.log('SW 등록 실패 (무시 가능):', err);
+      });
+    }catch(e){}
+  });
+}
+</script>
+</body>
+</html>
+                                                               
