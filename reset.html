@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>비상 초기화</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f8fafc;color:#0f172a;padding:30px;max-width:600px;margin:0 auto;line-height:1.6}
+h1{color:#dc2626}
+button{background:#dc2626;color:#fff;border:none;padding:14px 24px;font-size:16px;font-weight:700;border-radius:8px;cursor:pointer;margin:10px 5px;display:block;width:100%}
+button:hover{background:#991b1b}
+button.safe{background:#0284c7}
+button.safe:hover{background:#0369a1}
+.log{background:#1e293b;color:#a7f3d0;padding:14px;border-radius:8px;font-family:Consolas,monospace;font-size:12px;margin-top:14px;white-space:pre-wrap;max-height:300px;overflow:auto}
+.warn{background:#fef9c3;border-left:4px solid #ea580c;padding:14px;border-radius:6px;margin:14px 0}
+</style>
+</head>
+<body>
+<h1>🚨 비상 초기화 페이지</h1>
+<p>앱이 작동 안 할 때 사용하세요. 캐시·서비스 워커를 모두 삭제합니다.</p>
+
+<div class="warn">
+<strong>⚠️ 주의:</strong> "전체 초기화"는 입력하신 데이터(팀·호텔·매출 등)도 함께 삭제합니다. 데이터를 지키려면 먼저 "캐시만 초기화"를 시도하세요.
+</div>
+
+<button class="safe" onclick="cacheOnly()">🧹 캐시만 초기화 (데이터 보존)</button>
+<button onclick="fullReset()">💣 전체 초기화 (데이터 포함 모두 삭제)</button>
+<button class="safe" onclick="location.href='./tour_manager.html?nocache='+Date.now()">▶️ 앱으로 돌아가기 (캐시 무시)</button>
+
+<div class="log" id="log">대기 중...</div>
+
+<script>
+const log = (m)=>{
+  document.getElementById('log').textContent += '\n'+m;
+};
+
+async function cacheOnly(){
+  log('=== 캐시만 초기화 시작 ===');
+  if('serviceWorker' in navigator){
+    const regs = await navigator.serviceWorker.getRegistrations();
+    log('서비스 워커 '+regs.length+'개 발견');
+    for(const r of regs){
+      const result = await r.unregister();
+      log('  → 해제: '+result);
+    }
+  }
+  if('caches' in window){
+    const keys = await caches.keys();
+    log('캐시 '+keys.length+'개 발견: '+keys.join(', '));
+    for(const k of keys){
+      await caches.delete(k);
+      log('  → 삭제: '+k);
+    }
+  }
+  log('=== 완료 ===');
+  log('3초 후 앱으로 자동 이동');
+  setTimeout(()=>location.href='./tour_manager.html?nocache='+Date.now(), 3000);
+}
+
+async function fullReset(){
+  if(!confirm('정말 모든 데이터를 삭제하시겠습니까? (백업 안 한 데이터는 영구 손실)'))return;
+  log('=== 전체 초기화 시작 ===');
+  try{
+    localStorage.clear();
+    log('localStorage 삭제 완료');
+  }catch(e){log('localStorage 오류: '+e.message)}
+  try{
+    sessionStorage.clear();
+    log('sessionStorage 삭제 완료');
+  }catch(e){}
+  if('serviceWorker' in navigator){
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for(const r of regs){await r.unregister();log('SW 해제')}
+  }
+  if('caches' in window){
+    const keys = await caches.keys();
+    for(const k of keys){await caches.delete(k);log('캐시 삭제: '+k)}
+  }
+  log('=== 완료 ===');
+  log('3초 후 앱으로 자동 이동');
+  setTimeout(()=>location.href='./tour_manager.html?nocache='+Date.now(), 3000);
+}
+</script>
+</body>
+</html>
