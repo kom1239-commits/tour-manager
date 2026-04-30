@@ -1565,10 +1565,6 @@ function initImport(){
       });
       window._bodyDragWired = true;
     }
-    // File input change
-    fi.addEventListener('change', e=>{
-      if(e.target.files && e.target.files[0]) handleImportFile(e.target.files[0]);
-    });
     dz._wired = true;
   }
   // populate hotel select
