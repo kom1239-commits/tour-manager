@@ -2960,6 +2960,14 @@ function showHotelDetail(hotelId){
       totalRoomNights += (s.rooms||[]).reduce((sum,r)=>sum+(+r.count||0),0)*n;
     }
   }));
+  // Default the per-hotel calendar cursor to the most recent stay (or today)
+  const allStarts = [];
+  teams.forEach(t=>(t.hotelStays||[]).forEach(s=>{
+    if(s.hotelId===hotelId && s.checkIn) allStarts.push(s.checkIn);
+  }));
+  const cursor = allStarts.length ? new Date(allStarts.sort().slice(-1)[0]) : new Date();
+  cursor.setDate(1);
+  _hotelCal = {hotelId, cursor};
   const html = `<div class="card" style="border:2px solid var(--accent);margin-top:14px">
     <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
       <div>
@@ -2975,11 +2983,67 @@ function showHotelDetail(hotelId){
       <div class="stat"><div class="lbl">총 박수</div><div class="val">${totalNights}박</div></div>
       <div class="stat"><div class="lbl">객실박</div><div class="val">${totalRoomNights}</div></div>
     </div>
+    <h3 style="margin-top:20px">📅 이 호텔 예약 캘린더</h3>
+    <div class="cal-head">
+      <div class="row">
+        <button class="ghost" onclick="changeHotelCalMonth(-1)">‹ 이전달</button>
+        <h2 id="hotelCalTitle" style="margin:0;text-align:center;font-size:14px"></h2>
+        <button class="ghost" onclick="changeHotelCalMonth(1)">다음달 ›</button>
+      </div>
+    </div>
+    <div class="cal-grid" id="hotelCalGrid"></div>
     <h3 style="margin-top:20px">이용 팀 목록 (최근순) — 클릭하면 편집 가능</h3>
     ${teams.length===0 ? '<div class="empty">사용 이력이 없습니다.</div>' : teams.map(renderCompactTeamRow).join('')}
   </div>`;
   document.getElementById('hotelDetailPanel').innerHTML = html;
+  renderHotelCal();
   document.getElementById('hotelDetailPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+let _hotelCal = {hotelId:null, cursor:new Date()};
+function changeHotelCalMonth(delta){
+  if(!_hotelCal.hotelId)return;
+  _hotelCal.cursor.setMonth(_hotelCal.cursor.getMonth()+delta);
+  renderHotelCal();
+}
+function renderHotelCal(){
+  const {hotelId, cursor} = _hotelCal;
+  if(!hotelId)return;
+  const yr = cursor.getFullYear(), mo = cursor.getMonth();
+  const titleEl = document.getElementById('hotelCalTitle');
+  const gridEl = document.getElementById('hotelCalGrid');
+  if(!titleEl || !gridEl) return;
+  titleEl.textContent = `${yr}년 ${mo+1}월`;
+  const first = new Date(yr,mo,1), last = new Date(yr,mo+1,0);
+  const startDow = first.getDay();
+  const daysIn = last.getDate();
+  const todayStr = localISO(new Date());
+  // Index stays-per-date for this hotel
+  const byDate = {};
+  db.teams.forEach(t=>(t.hotelStays||[]).forEach(s=>{
+    if(s.hotelId!==hotelId || !s.checkIn || !s.checkOut)return;
+    let d = new Date(s.checkIn);
+    const end = new Date(s.checkOut);
+    while(d < end){
+      const ds = localISO(d);
+      (byDate[ds] = byDate[ds] || []).push({teamId:t.id, name:t.name, color:t.color||'#3b82f6'});
+      d.setDate(d.getDate()+1);
+    }
+  }));
+  const cellHtml = (d, other) => {
+    const ds = localISO(d);
+    const evs = byDate[ds] || [];
+    const isToday = ds === todayStr;
+    const evHtml = evs.slice(0,3).map(e=>`<span class="cal-evt" style="background:${e.color}" onclick="event.stopPropagation();openTeamModal('${e.teamId}')" title="${escapeHtml(e.name)}">${escapeHtml(e.name)}</span>`).join('');
+    const more = evs.length>3?`<div style="font-size:10px;color:var(--muted)">+${evs.length-3}</div>`:'';
+    return `<div class="cal-day${other?' other':''}${isToday?' today':''}">${`<div class="cal-num">${d.getDate()}</div>`}${evHtml}${more}</div>`;
+  };
+  let html = ['일','월','화','수','목','금','토'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  for(let i=0;i<startDow;i++) html += cellHtml(new Date(yr,mo,1-(startDow-i)), true);
+  for(let d=1;d<=daysIn;d++) html += cellHtml(new Date(yr,mo,d), false);
+  const total = startDow + daysIn, remain = (7 - total%7)%7;
+  for(let i=1;i<=remain;i++) html += cellHtml(new Date(yr,mo+1,i), true);
+  gridEl.innerHTML = html;
 }
 
 function showGuideDetail(guideId){
