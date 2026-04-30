@@ -3794,12 +3794,8 @@ renderDashboard();
 // ============== PWA SERVICE WORKER ==============
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('service-worker.js').catch(err=>{
-      console.log('Service Worker 등록 실패 (오프라인 기능만 영향):', err);
-    });
-  });
-}
-</script>
-</body>
-</html>
-                                                                                     
+    navigator.serviceWorker.register('service-worker.js').then(reg=>{
+      // 새 버전이 있으면 자동으로 활성화하고 페이지 새로고침
+      reg.addEventListener('updatefound', ()=>{
+        const newSW = reg.installing;
+        newSW?.addEventListener('statechange',
