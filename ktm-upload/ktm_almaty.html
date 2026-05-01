@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KTM — 알마티 근교 여행 지도</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;0,900;1,400&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+  :root {
+    --bg: #FAF8F3;
+    --bg-warm: #F8F1E4;
+    --bg-card: #FFFFFF;
+    --paper: #FFF9ED;
+    --ink: #2b241d;
+    --ink-soft: #6B5A49;
+    --ink-mute: #9A8B78;
+    --accent: #C95D2E;
+    --accent-deep: #A04A23;
+    --line: #E8DDC8;
+    --line-soft: rgba(120,92,52,.18);
+    --shadow-card: 0 2px 8px rgba(0,0,0,0.04);
+    --shadow-pin: 0 6px 18px rgba(0,0,0,0.18);
+    --shadow-detail: 0 20px 50px rgba(0,0,0,.18);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Noto Sans KR', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  /* Layout */
+  .app {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ===== Sidebar ===== */
+  .sidebar {
+    background: var(--bg-card);
+    overflow-y: auto;
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .brand-bar {
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-card);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .brand-mark {
+    width: 26px;
+    height: 26px;
+    background: var(--ink);
+    color: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 13px;
+    border-radius: 2px;
+  }
+
+  .brand-text {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--ink);
+    letter-spacing: 0.05em;
+  }
+
+  .lang-toggle {
+    display: flex;
+    gap: 2px;
+    background: var(--bg-warm);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 2px;
+  }
+
+  .lang-btn {
+    padding: 4px 10px;
+    background: transparent;
+    border: none;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 11px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: 2px;
+    letter-spacing: 0.05em;
+  }
+  .lang-btn.active { background: var(--ink); color: var(--paper); }
+
+  .side-content {
+    padding: 22px 22px 0;
+    flex: 1;
+  }
+
+  .side-title {
+    font-size: 26px;
+    font-weight: 900;
+    line-height: 1.2;
+    color: var(--ink);
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+
+  .side-sub {
+    color: var(--ink-mute);
+    font-size: 13px;
+    margin-bottom: 18px;
+  }
+
+  /* Search */
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-warm);
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    margin-bottom: 14px;
+  }
+
+  .search-box:focus-within {
+    border-color: var(--accent);
+    background: var(--bg-card);
+  }
+
+  .search-icon { color: var(--ink-mute); flex-shrink: 0; }
+
+  .search-input {
+    border: none;
+    outline: none;
+    width: 100%;
+    background: transparent;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+  }
+
+  .search-input::placeholder { color: var(--ink-mute); }
+
+  /* Category filter chips */
+  .cat-chips {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+
+  .cat-chip {
+    padding: 6px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .cat-chip:hover { border-color: var(--ink-soft); }
+
+  .cat-chip.active {
+    background: var(--bg-card);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* Spot list */
+  .spot-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 16px;
+  }
+
+  .spot-card {
+    text-align: left;
+    border: 1px solid var(--line);
+    background: var(--bg-card);
+    border-radius: 14px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .spot-card:hover {
+    border-color: var(--ink-soft);
+    transform: translateX(2px);
+  }
+
+  .spot-card.active {
+    border: 2px solid var(--accent);
+    padding: 11px;
+    box-shadow: 0 4px 12px rgba(201,93,46,.12);
+  }
+
+  .spot-card-photo {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--bg-warm);
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .spot-card-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .spot-card-photo-icon {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+  }
+
+  .spot-card-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .spot-card-name {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--ink);
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .spot-card-meta {
+    font-size: 12px;
+    color: var(--ink-mute);
+  }
+
+  .spot-card-arrow {
+    color: var(--ink-mute);
+    flex-shrink: 0;
+    font-size: 18px;
+  }
+
+  .spot-list-empty {
+    padding: 30px 14px;
+    text-align: center;
+    color: var(--ink-mute);
+    font-size: 13px;
+    font-style: italic;
+  }
+
+  /* PDF download button at bottom */
+  .pdf-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: calc(100% - 44px);
+    margin: 8px 22px 18px;
+    padding: 12px;
+    background: var(--bg-warm);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    color: var(--ink);
+    text-decoration: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .pdf-btn:hover {
+    background: var(--paper);
+    border-color: var(--ink-soft);
+  }
+
+  /* ===== Map area ===== */
+  .map-area {
+    position: relative;
+    height: 100vh;
+    background: #f0e8d4;
+    overflow: hidden;
+  }
+
+  #map {
+    height: 100%;
+    width: 100%;
+  }
+
+  /* My Location button */
+  .my-location-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: all 0.15s;
+  }
+
+  .my-location-btn:hover {
+    background: var(--paper);
+    border-color: var(--ink-soft);
+  }
+
+  /* ===== Custom photo pin ===== */
+  .photo-pin {
+    background: transparent !important;
+    border: none !important;
+  }
+
+  .photo-pin-wrap {
+    position: relative;
+    cursor: pointer;
+    transform: translate(-50%, -100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 0.2s;
+  }
+
+  .photo-pin-wrap:hover {
+    transform: translate(-50%, -100%) scale(1.05);
+  }
+
+  .photo-pin-card {
+    background: white;
+    border-radius: 12px;
+    padding: 6px;
+    padding-right: 12px;
+    box-shadow: var(--shadow-pin);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 2px solid white;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .photo-pin-card.active {
+    border-color: var(--accent);
+    box-shadow: 0 8px 24px rgba(201,93,46,.4);
+    transform: scale(1.08);
+  }
+
+  .photo-pin-img {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--bg-warm);
+  }
+
+  .photo-pin-info {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+
+  .photo-pin-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .photo-pin-meta {
+    font-size: 11px;
+    color: var(--ink-mute);
+    margin-top: 1px;
+  }
+
+  /* Tail (small pointer below pin card) */
+  .photo-pin-tail {
+    width: 12px;
+    height: 12px;
+    background: white;
+    margin-top: -6px;
+    transform: rotate(45deg);
+    border: 2px solid white;
+    border-top: none;
+    border-left: none;
+    box-shadow: 3px 3px 6px rgba(0,0,0,0.12);
+  }
+
+  .photo-pin-card.active + .photo-pin-tail {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* ===== Detail card ===== */
+  .detail-card {
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+    z-index: 1000;
+    width: 380px;
+    max-width: calc(100% - 40px);
+    background: var(--bg-card);
+    border-radius: 18px;
+    box-shadow: var(--shadow-detail);
+    overflow: hidden;
+    animation: detailSlideIn 0.4s ease-out;
+  }
+
+  @keyframes detailSlideIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .detail-photo {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    background: var(--bg-warm);
+    display: block;
+  }
+
+  .detail-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(255,255,255,0.95);
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 2;
+  }
+
+  .detail-close:hover { background: white; }
+
+  .detail-body {
+    padding: 18px 20px;
+  }
+
+  .detail-name {
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--ink);
+    line-height: 1.15;
+    margin: 0 0 2px;
+  }
+
+  .detail-en {
+    color: var(--ink-mute);
+    font-size: 13px;
+    font-style: italic;
+    margin-bottom: 10px;
+  }
+
+  .detail-cat-chip {
+    display: inline-block;
+    padding: 3px 10px;
+    background: var(--bg-warm);
+    color: var(--ink-soft);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .detail-short {
+    color: var(--ink);
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .detail-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 12px;
+    background: var(--bg-warm);
+    border-radius: 10px;
+  }
+
+  .detail-row {
+    display: grid;
+    grid-template-columns: 22px 80px 1fr;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  .detail-row-icon {
+    color: var(--ink-mute);
+    display: flex;
+    justify-content: center;
+  }
+
+  .detail-row-label {
+    color: var(--ink-mute);
+    font-size: 12px;
+  }
+
+  .detail-row-value {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .detail-actions-ext {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .external-btn {
+    flex: 1;
+    background: var(--bg-warm);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    text-decoration: none;
+    padding: 7px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .external-btn:hover {
+    background: white;
+    border-color: var(--ink-soft);
+  }
+
+  .external-btn.yandex:hover { color: #ff3333; border-color: #ff3333; }
+  .external-btn.google:hover { color: #1a73e8; border-color: #1a73e8; }
+
+  .cta-btn {
+    width: 100%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 12px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .cta-btn:hover { background: var(--accent-deep); }
+
+  .fav-btn {
+    width: 100%;
+    background: transparent;
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px;
+    font-weight: 500;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 8px;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .fav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .fav-btn.active { background: rgba(201,93,46,.06); border-color: var(--accent); color: var(--accent); }
+
+  /* Leaflet zoom control */
+  .leaflet-control-zoom {
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+  }
+
+  .leaflet-control-zoom a {
+    background: var(--bg-card) !important;
+    color: var(--ink) !important;
+    border: 1px solid var(--line) !important;
+    font-weight: 700 !important;
+  }
+
+  .leaflet-control-zoom a:hover {
+    background: var(--bg-warm) !important;
+    color: var(--accent) !important;
+  }
+
+  /* Lang toggle */
+  body[data-lang="en"] .ko-text { display: none; }
+  body[data-lang="ko"] .en-text { display: none; }
+
+  /* Mobile */
+  @media (max-width: 968px) {
+    .app {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto 1fr;
+      height: 100vh;
+    }
+    .sidebar {
+      max-height: 50vh;
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+    }
+    .map-area {
+      height: 100%;
+      min-height: 400px;
+    }
+    .detail-card {
+      width: calc(100% - 24px);
+      right: 12px;
+      bottom: 12px;
+    }
+    .detail-photo { height: 140px; }
+    .detail-name { font-size: 20px; }
+    .side-title { font-size: 22px; }
+    .photo-pin-card {
+      padding: 4px;
+      padding-right: 10px;
+    }
+    .photo-pin-img { width: 30px; height: 30px; }
+    .photo-pin-name { font-size: 11px; }
+    .photo-pin-meta { font-size: 9px; }
+  }
+</style>
+</head>
+<body data-lang="ko">
+
+<div class="app">
+
+  <!-- ======= LEFT SIDEBAR ======= -->
+  <aside class="sidebar">
+    <div class="brand-bar">
+      <a class="brand" onclick="goHome()">
+        <div class="brand-mark">K</div>
+        <div class="brand-text">KTM</div>
+      </a>
+      <div class="lang-toggle">
+        <button class="lang-btn active" onclick="setLang('ko')">KR</button>
+        <button class="lang-btn" onclick="setLang('en')">EN</button>
+      </div>
+    </div>
+
+    <div class="side-content">
+      <h1 class="side-title">
+        <span class="ko-text">알마티 근교 여행 지도</span>
+        <span class="en-text">Almaty Region Travel Map</span>
+      </h1>
+      <p class="side-sub">
+        <span class="ko-text">실제 위치 기반 · 상세 가이드</span>
+        <span class="en-text">Real GPS · Detailed Guide</span>
+      </p>
+
+      <!-- Search -->
+      <div class="search-box">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="searchInput" class="search-input" placeholder="장소 검색 (예: 차른, 콜사이)">
+      </div>
+
+      <!-- Category chips -->
+      <div class="cat-chips" id="catChips">
+        <button class="cat-chip active" data-cat="all">
+          <span class="ko-text">전체</span><span class="en-text">All</span>
+        </button>
+        <button class="cat-chip" data-cat="lake">
+          <span class="ko-text">호수</span><span class="en-text">Lakes</span>
+        </button>
+        <button class="cat-chip" data-cat="canyon">
+          <span class="ko-text">캐년</span><span class="en-text">Canyons</span>
+        </button>
+        <button class="cat-chip" data-cat="nature">
+          <span class="ko-text">자연</span><span class="en-text">Nature</span>
+        </button>
+        <button class="cat-chip" data-cat="culture">
+          <span class="ko-text">문화·역사</span><span class="en-text">Culture</span>
+        </button>
+        <button class="cat-chip" data-cat="city">
+          <span class="ko-text">시내</span><span class="en-text">City</span>
+        </button>
+      </div>
+
+      <!-- Spot list -->
+      <div id="spotList" class="spot-list"></div>
+    </div>
+
+    <a class="pdf-btn" onclick="downloadPDF()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+      </svg>
+      <span class="ko-text">여행지 정보 다운로드</span>
+      <span class="en-text">Download travel guide</span>
+    </a>
+  </aside>
+
+  <!-- ======= RIGHT MAP AREA ======= -->
+  <main class="map-area">
+    <div id="map"></div>
+
+    <button class="my-location-btn" onclick="goToMyLocation()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+      </svg>
+      <span class="ko-text">내 위치</span>
+      <span class="en-text">My Location</span>
+    </button>
+
+    <!-- Detail card -->
+    <div class="detail-card" id="detailCard" style="display:none;">
+      <button class="detail-close" onclick="closeDetail()">×</button>
+      <img class="detail-photo" id="detailPhoto" src="" alt="">
+      <div class="detail-body">
+        <div class="detail-cat-chip" id="detailBadge">자연</div>
+        <h2 class="detail-name" id="detailName">—</h2>
+        <div class="detail-en" id="detailEn">—</div>
+        <p class="detail-short" id="detailShort">—</p>
+
+        <div class="detail-rows">
+          <div class="detail-row">
+            <div class="detail-row-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4z"/>
+              </svg>
+            </div>
+            <div class="detail-row-label"><span class="ko-text">거리</span><span class="en-text">Distance</span></div>
+            <div class="detail-row-value" id="detailDistance">—</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-row-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 6v6l4 2"/>
+              </svg>
+            </div>
+            <div class="detail-row-label"><span class="ko-text">이동 시간</span><span class="en-text">Drive time</span></div>
+            <div class="detail-row-value" id="detailTime">—</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-row-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <path d="M16 2v4M8 2v4M3 10h18"/>
+              </svg>
+            </div>
+            <div class="detail-row-label"><span class="ko-text">추천 일정</span><span class="en-text">Best for</span></div>
+            <div class="detail-row-value" id="detailBest">—</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-row-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <div class="detail-row-label"><span class="ko-text">추천 동선</span><span class="en-text">Route</span></div>
+            <div class="detail-row-value" id="detailRoute">—</div>
+          </div>
+        </div>
+
+        <div class="detail-actions-ext">
+          <a class="external-btn yandex" id="detailYandex" href="#" target="_blank" rel="noopener">
+            📍 <span class="ko-text">얀덱스</span><span class="en-text">Yandex</span>
+          </a>
+          <a class="external-btn google" id="detailGoogle" href="#" target="_blank" rel="noopener">
+            🗺️ <span class="ko-text">구글맵</span><span class="en-text">Google</span>
+          </a>
+        </div>
+
+        <button class="cta-btn" onclick="openMatching()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
+            <path d="M16 2v4M8 2v4M3 10h18"/>
+          </svg>
+          <span class="ko-text">일정 만들기</span>
+          <span class="en-text">Plan Trip</span>
+        </button>
+
+        <button class="fav-btn" id="favBtn" onclick="toggleFavorite()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+          </svg>
+          <span class="ko-text">즐겨찾기에 추가</span>
+          <span class="en-text">Add to Favorites</span>
+        </button>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+  // ============ DATA — 22 spots ============
+  // photo: Unsplash search keyword for matching imagery
+  var PLACES = [
+    // East · Canyons & Lakes
+    { id:"charyn", category:"canyon", coords:[43.3598684, 79.0500292],
+      photo:"canyon,red-rock,desert", icon:"⛰️", color:"#C46A2B",
+      name_ko:"차른 캐년", name_en:"Charyn Canyon",
+      cat_ko:"자연 명소", cat_en:"Natural Wonder",
+      short_ko:"카자흐스탄의 대표 협곡, 수백만 년의 지질 역사를 간직한 장관",
+      short_en:"Kazakhstan's iconic canyon — a geological masterpiece",
+      distance_ko:"195km", distance_en:"195km",
+      time_ko:"약 3시간 30분", time_en:"~3.5h",
+      route_ko:"알마티 → 차른 캐년 → 블랙/문 캐년 → 알마티",
+      route_en:"Almaty → Charyn → Black/Moon Canyon → Almaty",
+      best_ko:"1일 또는 1박 2일", best_en:"Day trip or 2D1N"
+    },
+    { id:"black-canyon", category:"canyon", coords:[43.2688479, 78.9732188],
+      photo:"basalt-cliff,canyon,river", icon:"⛰️", color:"#5C534A",
+      name_ko:"블랙 캐년", name_en:"Black Canyon",
+      cat_ko:"자연 명소", cat_en:"Natural Wonder",
+      short_ko:"현무암 절벽과 강물의 대비가 인상적인 짧은 관람 포인트",
+      short_en:"Basalt cliffs & rushing river — quick scenic stop",
+      distance_ko:"215km", distance_en:"215km",
+      time_ko:"약 3시간 30분", time_en:"~3.5h",
+      route_ko:"알마티 → 차른 → 블랙 캐년 (차른에서 20분)",
+      route_en:"Almaty → Charyn → Black Canyon (20min)",
+      best_ko:"차른과 함께 1일", best_en:"Combine with Charyn"
+    },
+    { id:"moon-canyon", category:"canyon", coords:[43.2887449, 78.9889382],
+      photo:"yellow-canyon,desert,moon-landscape", icon:"⛰️", color:"#C9A449",
+      name_ko:"문 캐년 (옐로 캐년)", name_en:"Moon Canyon",
+      cat_ko:"자연 명소", cat_en:"Natural Wonder",
+      short_ko:"황토색 둥근 능선이 펼쳐진 외계 행성 같은 풍경",
+      short_en:"Lunar-like landscape with golden ridges",
+      distance_ko:"210km", distance_en:"210km",
+      time_ko:"약 3시간 30분", time_en:"~3.5h",
+      route_ko:"알마티 → 차른 → 문 캐년 (4WD 권장)",
+      route_en:"Almaty → Charyn → Moon Canyon (4WD)",
+      best_ko:"캐년 클러스터 1일", best_en:"With Charyn cluster"
+    },
+    { id:"saty-village", category:"culture", coords:[43.0692, 78.4080],
+      photo:"village,kazakhstan,mountains", icon:"🏘️", color:"#8b6f3a",
+      name_ko:"사티 마을", name_en:"Saty Village",
+      cat_ko:"베이스 마을", cat_en:"Gateway Village",
+      short_ko:"콜사이·카인디 가는 길의 마지막 마을 — 마지막 주유소",
+      short_en:"Last village before lakes — last fuel stop",
+      distance_ko:"280km", distance_en:"280km",
+      time_ko:"약 4시간 30분", time_en:"~4.5h",
+      route_ko:"알마티 → 자란아쉬 → 사티 마을",
+      route_en:"Almaty → Zhalanash → Saty",
+      best_ko:"콜사이·카인디 1박 베이스", best_en:"Lakes overnight base"
+    },
+    { id:"kolsai", category:"lake", coords:[42.935386, 78.3259016],
+      photo:"alpine-lake,emerald,mountain-forest", icon:"🌊", color:"#3F8297",
+      name_ko:"콜사이 호수", name_en:"Kolsai Lakes",
+      cat_ko:"자연 명소", cat_en:"Natural Wonder",
+      short_ko:"천산 산맥 속 에메랄드빛 고산 호수 (1호수까지 포장도로)",
+      short_en:"Emerald alpine lakes — paved road to Lake 1",
+      distance_ko:"285km", distance_en:"285km",
+      time_ko:"약 4시간 30분", time_en:"~4.5h",
+      route_ko:"알마티 → 사티 마을 → 콜사이 1호수",
+      route_en:"Almaty → Saty → Kolsai Lake 1",
+      best_ko:"1박 2일 이상 추천", best_en:"2D1N+"
+    },
+    { id:"kaindy", category:"lake", coords:[42.9840814, 78.4673797],
+      photo:"sunken-forest,turquoise-lake,trees-water", icon:"🌊", color:"#3F8297",
+      name_ko:"카인디 호수", name_en:"Kaindy Lake",
+      cat_ko:"시그니처", cat_en:"Signature",
+      short_ko:"물속 침엽수 숲으로 유명한 시그니처 호수 (4WD 필수)",
+      short_en:"Famous sunken forest lake — 4WD required",
+      distance_ko:"300km", distance_en:"300km",
+      time_ko:"약 5시간", time_en:"~5h",
+      route_ko:"알마티 → 사티 → 무덤 지나서 비포장 → 카인디",
+      route_en:"Almaty → Saty → past cemetery → Kaindy",
+      best_ko:"콜사이와 1박 2일", best_en:"With Kolsai 2D1N"
+    },
+    { id:"tuzkol", category:"lake", coords:[43.0200, 79.0200],
+      photo:"salt-lake,reflection,mountain", icon:"🌊", color:"#5d8a9c",
+      name_ko:"투즈콜 호수", name_en:"Tuzkol Lake",
+      cat_ko:"거울 호수", cat_en:"Mirror Lake",
+      short_ko:"한텡그리 봉을 비추는 고산 소금 호수",
+      short_en:"Salt lake reflecting Khan Tengri (7,010m)",
+      distance_ko:"350km", distance_en:"350km",
+      time_ko:"약 5시간", time_en:"~5h",
+      route_ko:"알마티 → 차른 → 투즈콜 (오프로드)",
+      route_en:"Almaty → Charyn → Tuzkol",
+      best_ko:"2박 3일+", best_en:"2D1N+"
+    },
+
+    // South · Mountain Lakes
+    { id:"bao", category:"lake", coords:[43.0517, 76.985],
+      photo:"big-almaty-lake,turquoise,kazakhstan", icon:"🌊", color:"#3F8297",
+      name_ko:"빅 알마티 호수", name_en:"Big Almaty Lake",
+      cat_ko:"자연 명소", cat_en:"Natural Wonder",
+      short_ko:"알마티에서 가까운 대표 고산 호수",
+      short_en:"Iconic alpine lake near Almaty",
+      distance_ko:"35km", distance_en:"35km",
+      time_ko:"약 1시간 15분", time_en:"~1.25h",
+      route_ko:"알마티 시내 → 알펜로즈 → BAO",
+      route_en:"Almaty → Alpenrose → BAO",
+      best_ko:"반나절~1일", best_en:"Half to full day"
+    },
+    { id:"issyk-lake", category:"lake", coords:[43.2658, 77.4581],
+      photo:"mountain-lake,forest,kazakhstan", icon:"🌊", color:"#3F8297",
+      name_ko:"이식 호수", name_en:"Issyk Lake",
+      cat_ko:"자연 명소", cat_en:"Natural Wonder",
+      short_ko:"알마티 근교에서 부담 없이 다녀오기 좋은 산악 호수",
+      short_en:"Easy alpine lake near Almaty",
+      distance_ko:"70km", distance_en:"70km",
+      time_ko:"약 1시간 30분", time_en:"~1.5h",
+      route_ko:"알마티 → 이식 박물관 → 이식 호수",
+      route_en:"Almaty → Issyk Museum → Issyk Lake",
+      best_ko:"반나절~1일", best_en:"Half to full day"
+    },
+    { id:"turgen-falls", category:"nature", coords:[43.3850, 77.6950],
+      photo:"waterfall,forest,mountain", icon:"💧", color:"#5C8A4C",
+      name_ko:"투르겐 폭포", name_en:"Turgen Falls",
+      cat_ko:"자연 명소", cat_en:"Natural Wonder",
+      short_ko:"비지터 센터에서 도보 1.3km — 30m 곰폭포",
+      short_en:"1.3km hike — 30m Bear Falls",
+      distance_ko:"90km", distance_en:"90km",
+      time_ko:"약 2시간", time_en:"~2h",
+      route_ko:"알마티 → KB-64 → 비지터 센터 → 도보 1.3km",
+      route_en:"Almaty → KB-64 → Visitor Center → 1.3km hike",
+      best_ko:"1일", best_en:"Day trip"
+    },
+    { id:"assy-observatory", category:"nature", coords:[43.2244, 77.8753],
+      photo:"plateau,observatory,milky-way", icon:"🌌", color:"#5C8A4C",
+      name_ko:"아씨 고원 천문대", name_en:"Assy Plateau",
+      cat_ko:"고원·천문", cat_en:"Plateau",
+      short_ko:"해발 2,750m 고산 초원, 은하수 촬영 명소",
+      short_en:"2,750m grassland — Milky Way photo spot",
+      distance_ko:"100km", distance_en:"100km",
+      time_ko:"약 2시간 30분", time_en:"~2.5h",
+      route_ko:"알마티 → 투르겐 → 아씨 고원 (4WD 권장)",
+      route_en:"Almaty → Turgen → Assy (4WD)",
+      best_ko:"반나절~1박", best_en:"Half day to overnight"
+    },
+
+    // North & West
+    { id:"tamgaly", category:"culture", coords:[43.811, 77.066],
+      photo:"petroglyph,buddha,rock-art", icon:"🪨", color:"#9A7A35",
+      name_ko:"탐갈리타스", name_en:"Tamgaly-Tas",
+      cat_ko:"문화·역사", cat_en:"Culture",
+      short_ko:"일리강변의 불상 암각화와 초원 풍경",
+      short_en:"Buddhist petroglyphs along Ili River",
+      distance_ko:"120km", distance_en:"120km",
+      time_ko:"약 2시간", time_en:"~2h",
+      route_ko:"알마티 → 카프차가이 → 탐갈리타스",
+      route_en:"Almaty → Kapchagai → Tamgaly-Tas",
+      best_ko:"반나절~1일", best_en:"Half to full day"
+    },
+    { id:"kapchagai", category:"lake", coords:[43.8800, 77.0700],
+      photo:"reservoir-lake,beach,kazakhstan", icon:"🌊", color:"#3F8297",
+      name_ko:"카프차가이 호수", name_en:"Kapchagai Lake",
+      cat_ko:"호수·리조트", cat_en:"Lake",
+      short_ko:"알마티 근교의 대형 인공호수, 여름철 수상 레저",
+      short_en:"Large reservoir — summer water sports",
+      distance_ko:"70km", distance_en:"70km",
+      time_ko:"약 1시간 30분", time_en:"~1.5h",
+      route_ko:"알마티 → 카프차가이",
+      route_en:"Almaty → Kapchagai",
+      best_ko:"반나절", best_en:"Half day"
+    },
+    { id:"nomad-set", category:"culture", coords:[43.6100, 76.5800],
+      photo:"film-set,medieval,fortress", icon:"🎬", color:"#9A7A35",
+      name_ko:"노마드 영화 세트장", name_en:"Nomad Film Set",
+      cat_ko:"문화·역사", cat_en:"Culture",
+      short_ko:"영화 「Nomad: The Warrior」(2005) 촬영지",
+      short_en:"'Nomad: The Warrior' (2005) filming location",
+      distance_ko:"50km", distance_en:"50km",
+      time_ko:"약 1시간", time_en:"~1h",
+      route_ko:"알마티 → 카프차가이 방향 → 세트장",
+      route_en:"Almaty → towards Kapchagai → Film Set",
+      best_ko:"반나절", best_en:"Half day"
+    },
+    { id:"basshi", category:"culture", coords:[44.1583, 78.7525],
+      photo:"steppe-village,kazakhstan,nomad", icon:"🏘️", color:"#8b6f3a",
+      name_ko:"바스히 마을", name_en:"Basshi Village",
+      cat_ko:"베이스 마을", cat_en:"Gateway Village",
+      short_ko:"알튼에멜 국립공원 본부 — 입장권·게스트하우스",
+      short_en:"Altyn-Emel HQ — permits & guesthouses",
+      distance_ko:"250km", distance_en:"250km",
+      time_ko:"약 4시간", time_en:"~4h",
+      route_ko:"알마티 → 사르요젝 → 바스히",
+      route_en:"Almaty → Saryozek → Basshi",
+      best_ko:"알튼에멜 1박 2일 베이스", best_en:"Altyn-Emel 2D1N base"
+    },
+    { id:"singing-dune", category:"nature", coords:[44.0900, 78.9530],
+      photo:"sand-dune,desert,kazakhstan", icon:"🏜️", color:"#C9A449",
+      name_ko:"노래하는 사막", name_en:"Singing Dune",
+      cat_ko:"자연 명소", cat_en:"Natural Wonder",
+      short_ko:"길이 1.5km, 높이 120m — 바람이 불면 사막이 노래함",
+      short_en:"1.5km × 120m dune that 'sings' in wind",
+      distance_ko:"300km", distance_en:"300km",
+      time_ko:"약 5시간", time_en:"~5h",
+      route_ko:"알마티 → 바스히 → 비포장 46km (4WD)",
+      route_en:"Almaty → Basshi → 46km unpaved (4WD)",
+      best_ko:"1박 2일 (바스히 1박)", best_en:"2D1N (Basshi)"
+    },
+    { id:"aktau-mountains", category:"nature", coords:[43.8350, 79.1900],
+      photo:"colored-mountains,layered-rock,canyon", icon:"🌄", color:"#5C8A4C",
+      name_ko:"악타우 산맥", name_en:"Aktau Mountains",
+      cat_ko:"자연 명소", cat_en:"Natural Wonder",
+      short_ko:"무지개빛 백색 산맥 — 외계 행성 같은 풍경",
+      short_en:"Multicolored mountains — surreal landscape",
+      distance_ko:"330km", distance_en:"330km",
+      time_ko:"약 6시간", time_en:"~6h",
+      route_ko:"알마티 → 바스히 → 비포장 80km (4WD)",
+      route_en:"Almaty → Basshi → 80km unpaved (4WD)",
+      best_ko:"1박 2일 (바스히 1박)", best_en:"2D1N (Basshi)"
+    },
+
+    // Almaty City
+    { id:"koktobe", category:"city", coords:[43.2298, 76.9783],
+      photo:"almaty,city-view,tv-tower", icon:"🏙️", color:"#c4471c",
+      name_ko:"콕토베", name_en:"Kok-Tobe",
+      cat_ko:"시내", cat_en:"City",
+      short_ko:"케이블카로 오르는 알마티의 푸른 언덕 · 야경 명소",
+      short_en:"Cable car to the green hill — best night view",
+      distance_ko:"시내", distance_en:"In-city",
+      time_ko:"30분", time_en:"30min",
+      route_ko:"도스틱 거리 → 케이블카 → 콕토베",
+      route_en:"Dostyk Ave → cable car → Kok-Tobe",
+      best_ko:"반나절", best_en:"Half day"
+    },
+    { id:"medeu", category:"city", coords:[43.1583, 77.0578],
+      photo:"ice-skating-rink,mountain,almaty", icon:"⛸️", color:"#c4471c",
+      name_ko:"메데우 빙상장", name_en:"Medeu Skating Rink",
+      cat_ko:"시내", cat_en:"City",
+      short_ko:"세계 최고 고도 빙상장 — 120+ 세계 기록",
+      short_en:"World's highest skating rink — 120+ records",
+      distance_ko:"15km", distance_en:"15km",
+      time_ko:"30분", time_en:"30min",
+      route_ko:"알마티 → 메데우 (12번 버스)",
+      route_en:"Almaty → Medeu (Bus 12)",
+      best_ko:"심불락과 반나절", best_en:"Half day with Shymbulak"
+    },
+    { id:"shymbulak", category:"city", coords:[43.1202, 77.0814],
+      photo:"ski-resort,tien-shan,cable-car", icon:"⛰️", color:"#c4471c",
+      name_ko:"심불락 스키 리조트", name_en:"Shymbulak",
+      cat_ko:"시내", cat_en:"City",
+      short_ko:"메데우 위 케이블카로 오르는 천산 산맥 리조트",
+      short_en:"Tien Shan ski resort via cable car",
+      distance_ko:"25km", distance_en:"25km",
+      time_ko:"45분", time_en:"45min",
+      route_ko:"알마티 → 메데우 → 심불락 (케이블카)",
+      route_en:"Almaty → Medeu → Shymbulak",
+      best_ko:"메데우와 1일", best_en:"Full day with Medeu"
+    },
+    { id:"green-bazaar", category:"city", coords:[43.2616, 76.9476],
+      photo:"market,spices,fresh-produce", icon:"🛍️", color:"#c4471c",
+      name_ko:"그린 바자르", name_en:"Green Bazaar",
+      cat_ko:"시내", cat_en:"City",
+      short_ko:"향신료·말고기·견과 — 알마티의 살아있는 시장",
+      short_en:"Spices, horse meat, nuts — Almaty's market",
+      distance_ko:"시내", distance_en:"In-city",
+      time_ko:"30분", time_en:"30min",
+      route_ko:"판필로프 공원 도보 5분",
+      route_en:"5min walk from Panfilov Park",
+      best_ko:"1-2시간", best_en:"1-2h"
+    },
+    { id:"panfilov", category:"city", coords:[43.2649, 76.9536],
+      photo:"orthodox-cathedral,wooden-church,park", icon:"⛪", color:"#c4471c",
+      name_ko:"판필로프 공원", name_en:"Panfilov Park",
+      cat_ko:"시내", cat_en:"City",
+      short_ko:"못 하나 안 쓴 목조 정교회 성당과 시민 공원",
+      short_en:"Wooden Orthodox cathedral built without nails",
+      distance_ko:"시내", distance_en:"In-city",
+      time_ko:"30분", time_en:"30min",
+      route_ko:"그린 바자르 도보 5분",
+      route_en:"5min walk from Green Bazaar",
+      best_ko:"1시간", best_en:"1h"
+    }
+  ];
+
+  // ============ STATE ============
+  var map = null;
+  var markers = {};
+  var selectedId = null;
+  var filteredPlaces = PLACES.slice();
+  var lang = 'ko';
+  var activeCategory = 'all';
+  var favorites = new Set();
+
+  // ============ HELPERS ============
+  function photoUrl(p, w, h) {
+    // Unsplash Source API: returns a random matched image for the keywords
+    return 'https://source.unsplash.com/' + w + 'x' + h + '/?' + encodeURIComponent(p.photo);
+  }
+
+  // ============ INIT MAP ============
+  function initMap() {
+    map = L.map('map', {
+      center: [43.4, 78.0],
+      zoom: 8,
+      minZoom: 6,
+      maxZoom: 14,
+      zoomControl: false,
+      scrollWheelZoom: true
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap © CARTO',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    L.control.zoom({ position: 'topleft' }).addTo(map);
+
+    PLACES.forEach(addMarker);
+
+    var bounds = L.latLngBounds(PLACES.map(function(p) { return p.coords; }));
+    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 9 });
+  }
+
+  function buildPinHTML(p, isActive) {
+    var name = lang === 'en' ? p.name_en : p.name_ko;
+    var meta = (lang === 'en' ? p.distance_en : p.distance_ko) + ' · ' +
+               (lang === 'en' ? p.time_en : p.time_ko);
+    return '<div class="photo-pin-wrap">' +
+             '<div class="photo-pin-card' + (isActive ? ' active' : '') + '">' +
+               '<img class="photo-pin-img" src="' + photoUrl(p, 80, 80) + '" alt="" loading="lazy">' +
+               '<div class="photo-pin-info">' +
+                 '<div class="photo-pin-name">' + name + '</div>' +
+                 '<div class="photo-pin-meta">' + meta + '</div>' +
+               '</div>' +
+             '</div>' +
+             '<div class="photo-pin-tail"></div>' +
+           '</div>';
+  }
+
+  function addMarker(p) {
+    var icon = L.divIcon({
+      className: 'photo-pin',
+      html: buildPinHTML(p, false),
+      iconSize: [200, 60],
+      iconAnchor: [100, 60]
+    });
+
+    var marker = L.marker(p.coords, { icon: icon }).addTo(map);
+    marker.on('click', function() { selectPlace(p.id); });
+    markers[p.id] = marker;
+  }
+
+  function refreshMarkers() {
+    PLACES.forEach(function(p) {
+      var marker = markers[p.id];
+      if (!marker) return;
+      // Hide if filtered out
+      var visible = filteredPlaces.some(function(x) { return x.id === p.id; });
+      if (!visible) {
+        if (map.hasLayer(marker)) map.removeLayer(marker);
+        return;
+      }
+      if (!map.hasLayer(marker)) marker.addTo(map);
+      var isActive = (p.id === selectedId);
+      var icon = L.divIcon({
+        className: 'photo-pin',
+        html: buildPinHTML(p, isActive),
+        iconSize: [200, 60],
+        iconAnchor: [100, 60]
+      });
+      marker.setIcon(icon);
+    });
+  }
+
+  // ============ SELECT ============
+  function selectPlace(id) {
+    selectedId = id;
+    var p = PLACES.find(function(x) { return x.id === id; });
+    if (!p) return;
+
+    var zoom = (p.category === 'city' || p.id === 'bao') ? 11 : 9;
+    if (map) map.flyTo(p.coords, zoom, { duration: 0.8 });
+
+    showDetail(p);
+    renderList();
+    refreshMarkers();
+
+    if (window.innerWidth <= 968) {
+      var mapEl = document.getElementById('map');
+      if (mapEl) mapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function showDetail(p) {
+    var card = document.getElementById('detailCard');
+    card.style.display = 'block';
+
+    document.getElementById('detailPhoto').src = photoUrl(p, 600, 360);
+    document.getElementById('detailPhoto').alt = lang === 'en' ? p.name_en : p.name_ko;
+
+    var badge = document.getElementById('detailBadge');
+    badge.textContent = lang === 'en' ? p.cat_en : p.cat_ko;
+    badge.style.background = p.color + '22';
+    badge.style.color = p.color;
+
+    document.getElementById('detailName').textContent = lang === 'en' ? p.name_en : p.name_ko;
+    document.getElementById('detailEn').textContent = lang === 'en' ? p.name_ko : p.name_en;
+    document.getElementById('detailShort').textContent = lang === 'en' ? p.short_en : p.short_ko;
+    document.getElementById('detailDistance').textContent = lang === 'en' ? p.distance_en : p.distance_ko;
+    document.getElementById('detailTime').textContent = lang === 'en' ? p.time_en : p.time_ko;
+    document.getElementById('detailRoute').textContent = lang === 'en' ? p.route_en : p.route_ko;
+    document.getElementById('detailBest').textContent = lang === 'en' ? p.best_en : p.best_ko;
+
+    var lat = p.coords[0], lng = p.coords[1];
+    document.getElementById('detailYandex').href =
+      'https://yandex.com/maps/?ll=' + lng + ',' + lat + '&z=14&pt=' + lng + ',' + lat;
+    document.getElementById('detailGoogle').href =
+      'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lng;
+
+    var favBtn = document.getElementById('favBtn');
+    favBtn.classList.toggle('active', favorites.has(p.id));
+  }
+
+  function closeDetail() {
+    document.getElementById('detailCard').style.display = 'none';
+    selectedId = null;
+    renderList();
+    refreshMarkers();
+  }
+
+  // ============ LIST ============
+  function applyFilters() {
+    var q = document.getElementById('searchInput').value.trim().toLowerCase();
+    filteredPlaces = PLACES.filter(function(p) {
+      var matchCat = activeCategory === 'all' || p.category === activeCategory;
+      var matchQ = !q || (p.name_ko + ' ' + p.name_en).toLowerCase().includes(q);
+      return matchCat && matchQ;
+    });
+    renderList();
+    refreshMarkers();
+  }
+
+  function renderList() {
+    var container = document.getElementById('spotList');
+    if (!container) return;
+
+    if (filteredPlaces.length === 0) {
+      container.innerHTML = '<div class="spot-list-empty">' +
+        (lang === 'en' ? 'No spots match' : '검색 결과가 없습니다') + '</div>';
+      return;
+    }
+
+    var html = '';
+    filteredPlaces.forEach(function(p) {
+      var isActive = (p.id === selectedId);
+      html += '<button class="spot-card' + (isActive ? ' active' : '') + '" onclick="selectPlace(\'' + p.id + '\')">' +
+                '<div class="spot-card-photo">' +
+                  '<img src="' + photoUrl(p, 120, 120) + '" alt="" loading="lazy">' +
+                  '<div class="spot-card-photo-icon" style="border-color:' + p.color + ';">' + p.icon + '</div>' +
+                '</div>' +
+                '<div class="spot-card-body">' +
+                  '<div class="spot-card-name">' + (lang === 'en' ? p.name_en : p.name_ko) + '</div>' +
+                  '<div class="spot-card-meta">' +
+                    (lang === 'en' ? p.distance_en : p.distance_ko) + ' · ' +
+                    (lang === 'en' ? p.time_en : p.time_ko) +
+                  '</div>' +
+                '</div>' +
+                '<span class="spot-card-arrow">›</span>' +
+              '</button>';
+    });
+    container.innerHTML = html;
+  }
+
+  // ============ CATEGORY CHIPS ============
+  function setupCategoryChips() {
+    var chips = document.querySelectorAll('.cat-chip');
+    chips.forEach(function(chip) {
+      chip.addEventListener('click', function() {
+        chips.forEach(function(c) { c.classList.remove('active'); });
+        chip.classList.add('active');
+        activeCategory = chip.dataset.cat;
+        applyFilters();
+      });
+    });
+  }
+
+  // ============ SEARCH ============
+  function setupSearch() {
+    var input = document.getElementById('searchInput');
+    input.addEventListener('input', applyFilters);
+  }
+
+  // ============ LANG ============
+  function setLang(newLang) {
+    lang = newLang;
+    document.body.setAttribute('data-lang', newLang);
+    document.querySelectorAll('.lang-btn').forEach(function(btn) {
+      var btnLang = btn.textContent.trim().toUpperCase();
+      btn.classList.toggle('active',
+        (newLang === 'en' && btnLang === 'EN') ||
+        (newLang === 'ko' && btnLang === 'KR'));
+    });
+
+    var input = document.getElementById('searchInput');
+    if (input) {
+      input.placeholder = newLang === 'en'
+        ? 'Search (e.g. Charyn, Kolsai)'
+        : '장소 검색 (예: 차른, 콜사이)';
+    }
+
+    renderList();
+    refreshMarkers();
+    if (selectedId) {
+      var p = PLACES.find(function(x) { return x.id === selectedId; });
+      if (p) showDetail(p);
+    }
+  }
+
+  // ============ ACTIONS ============
+  function goHome() {
+    window.location.href = 'ktm_main.html';
+  }
+
+  function goToMyLocation() {
+    if (!navigator.geolocation) {
+      alert(lang === 'en' ? 'Geolocation not supported' : '위치 정보를 사용할 수 없습니다');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      map.flyTo([pos.coords.latitude, pos.coords.longitude], 12, { duration: 1.0 });
+    }, function() {
+      alert(lang === 'en' ? 'Could not get your location' : '위치를 가져올 수 없습니다');
+    });
+  }
+
+  function openMatching() {
+    var p = PLACES.find(function(x) { return x.id === selectedId; });
+    var name = p ? (lang === 'en' ? p.name_en : p.name_ko) : '';
+    alert(lang === 'en'
+      ? '🚗 Plan a private trip: ' + name + '\n(Coming soon — KakaoTalk integration)'
+      : '🚗 ' + name + ' 일정 만들기\n(카카오톡 연결 준비 중)');
+  }
+
+  function toggleFavorite() {
+    if (!selectedId) return;
+    if (favorites.has(selectedId)) favorites.delete(selectedId);
+    else favorites.add(selectedId);
+    var btn = document.getElementById('favBtn');
+    btn.classList.toggle('active', favorites.has(selectedId));
+  }
+
+  function downloadPDF() {
+    alert(lang === 'en'
+      ? 'Travel guide PDF download — coming soon!'
+      : '여행지 정보 PDF 다운로드 — 준비 중입니다!');
+  }
+
+  // ============ INIT ============
+  window.addEventListener('DOMContentLoaded', function() {
+    initMap();
+    setupSearch();
+    setupCategoryChips();
+    renderList();
+    var hashId = decodeURIComponent((location.hash || '').replace('#', ''));
+    var initial = PLACES.find(function(x) { return x.id === hashId; }) ? hashId : 'charyn';
+    setTimeout(function() { selectPlace(initial); }, 600);
+  });
+
+  window.addEventListener('hashchange', function() {
+    var hashId = decodeURIComponent((location.hash || '').replace('#', ''));
+    if (PLACES.find(function(x) { return x.id === hashId; })) {
+      selectPlace(hashId);
+    }
+  });
+</script>
+
+</body>
+</html>
