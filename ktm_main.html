@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>KTM — 카자흐스탄 프라이빗 여행 플랫폼</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;0,900;1,400&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FAF8F3;
+    --bg-warm: #F8F1E4;
+    --bg-card: #FFFFFF;
+    --paper: #FFF9ED;
+    --paper-deep: #F3E8CD;
+    --ink: #2b241d;
+    --ink-soft: #6B5A49;
+    --ink-mute: #9A8B78;
+    --accent: #C95D2E;
+    --accent-deep: #A04A23;
+    --accent-soft: #F2D8C7;
+    --gold: #C9A449;
+    --green: #5C8A4C;
+    --teal: #3F8297;
+    --line: #E8DDC8;
+    --line-soft: rgba(120,92,52,.18);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
+    --shadow-md: 0 6px 18px rgba(0,0,0,0.08);
+    --shadow-lg: 0 20px 50px rgba(0,0,0,.12);
+    --shadow-pin: 0 6px 18px rgba(0,0,0,0.18);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Noto Sans KR', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; }
+  img { display: block; max-width: 100%; }
+
+  /* ===== Top Nav ===== */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(250, 248, 243, 0.92);
+    backdrop-filter: saturate(140%) blur(8px);
+    -webkit-backdrop-filter: saturate(140%) blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+    background: var(--ink);
+    color: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 15px;
+    border-radius: 3px;
+  }
+  .brand-text {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.06em;
+  }
+  .brand-sub {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 12px;
+    color: var(--ink-mute);
+    margin-left: 2px;
+  }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+  .nav-links a:hover { color: var(--accent); }
+  .nav-cta {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .lang-toggle {
+    display: flex;
+    background: var(--bg-warm);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px;
+  }
+  .lang-btn {
+    padding: 4px 12px;
+    background: transparent;
+    border: none;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 11px;
+    color: var(--ink-soft);
+    border-radius: 999px;
+    letter-spacing: 0.05em;
+  }
+  .lang-btn.active { background: var(--ink); color: var(--paper); }
+  .nav-btn {
+    background: var(--accent);
+    color: white;
+    padding: 9px 18px;
+    border-radius: 999px;
+    border: none;
+    font-weight: 700;
+    font-size: 13px;
+    transition: background .2s;
+  }
+  .nav-btn:hover { background: var(--accent-deep); }
+
+  /* ===== Hero ===== */
+  .hero {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 60px 28px 40px;
+    display: grid;
+    grid-template-columns: 1fr 1.1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 13px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 5px 14px;
+    border-radius: 999px;
+    margin-bottom: 18px;
+  }
+  .hero-tag::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px rgba(201,93,46,.18);
+  }
+  .hero h1 {
+    font-size: 52px;
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-bottom: 18px;
+  }
+  .hero h1 em {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .hero-lead {
+    font-size: 17px;
+    color: var(--ink-soft);
+    margin-bottom: 28px;
+    max-width: 540px;
+  }
+  .hero-lead b { color: var(--ink); font-weight: 700; }
+  .hero-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 22px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 15px;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover {
+    background: var(--accent-deep);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+  .btn-ghost {
+    background: var(--bg-card);
+    border-color: var(--line);
+    color: var(--ink);
+  }
+  .btn-ghost:hover {
+    border-color: var(--ink-soft);
+    background: var(--paper);
+  }
+
+  .hero-stats {
+    display: flex;
+    gap: 32px;
+    margin-top: 36px;
+    padding-top: 28px;
+    border-top: 1px solid var(--line);
+  }
+  .stat-num {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: var(--ink-mute);
+    margin-top: 4px;
+  }
+
+  /* ===== Map Card ===== */
+  .map-card {
+    position: relative;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 22px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+  .map-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(201,164,73,.05) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(63,130,151,.05) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  .map-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+    position: relative;
+    z-index: 2;
+  }
+  .map-card-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .map-card-sub {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 12px;
+    color: var(--ink-mute);
+    margin-top: 2px;
+  }
+  .map-legend {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--ink-mute);
+    align-items: center;
+  }
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .legend-dot.active { background: var(--accent); box-shadow: 0 0 0 3px rgba(201,93,46,.18); }
+  .legend-dot.soon { background: var(--ink-mute); opacity: .5; }
+
+  .kz-map-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1000 / 540;
+    z-index: 2;
+  }
+  .kz-map-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Region pins (HTML overlay on top of SVG) */
+  .region-pin {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    cursor: pointer;
+    transition: transform .25s;
+  }
+  .region-pin:hover { transform: translate(-50%, -100%) translateY(-3px); }
+  .region-card {
+    background: white;
+    border: 2px solid white;
+    border-radius: 14px;
+    padding: 7px 12px 7px 8px;
+    box-shadow: var(--shadow-pin);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    white-space: nowrap;
+    transition: all .2s;
+  }
+  .region-pin.active .region-card {
+    border-color: var(--accent);
+    box-shadow: 0 10px 28px rgba(201,93,46,.32);
+  }
+  .region-pin.soon .region-card {
+    background: rgba(255,255,255,0.85);
+    color: var(--ink-mute);
+  }
+  .region-img {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    background: var(--paper-deep);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .region-pin.active .region-img {
+    background: var(--accent-soft);
+  }
+  .region-name {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1.1;
+  }
+  .region-pin.soon .region-name { color: var(--ink-soft); }
+  .region-meta {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 10px;
+    color: var(--ink-mute);
+    margin-top: 1px;
+  }
+  .region-meta.now { color: var(--accent); font-weight: 600; }
+  .region-tail {
+    width: 10px;
+    height: 10px;
+    background: white;
+    margin: -5px auto 0;
+    transform: rotate(45deg);
+    border: 2px solid white;
+    border-top: none;
+    border-left: none;
+    box-shadow: 3px 3px 6px rgba(0,0,0,0.1);
+  }
+  .region-pin.active .region-tail {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .region-pin.active::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -16px;
+    transform: translateX(-50%);
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(201,93,46,.25);
+    animation: pulse 2s infinite;
+    z-index: -1;
+  }
+  @keyframes pulse {
+    0% { transform: translateX(-50%) scale(1); opacity: .8; }
+    100% { transform: translateX(-50%) scale(2.4); opacity: 0; }
+  }
+
+  /* ===== Section ===== */
+  section.block {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 60px 28px;
+  }
+  .block-head {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+  .block-eyebrow {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    color: var(--accent);
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .block-title {
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--ink);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin-bottom: 10px;
+  }
+  .block-title em {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .block-sub {
+    color: var(--ink-soft);
+    font-size: 15px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* ===== Services ===== */
+  .services {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+  .service {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 26px 22px;
+    transition: all .2s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .service:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--ink-soft);
+  }
+  .service-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 14px;
+  }
+  .service-icon.car { background: rgba(201,93,46,.12); }
+  .service-icon.bed { background: rgba(63,130,151,.12); }
+  .service-icon.hotel { background: rgba(201,164,73,.12); }
+  .service-icon.plan { background: rgba(92,138,76,.12); }
+  .service-name {
+    font-size: 17px;
+    font-weight: 800;
+    margin-bottom: 6px;
+  }
+  .service-desc {
+    color: var(--ink-soft);
+    font-size: 13px;
+    line-height: 1.55;
+    margin-bottom: 14px;
+  }
+  .service-link {
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .service:hover .service-link { gap: 8px; }
+
+  /* ===== Region Picker / Tab ===== */
+  .picker-bar {
+    display: flex;
+    gap: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 8px;
+    margin: 0 auto 30px;
+    max-width: max-content;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .picker-btn {
+    background: transparent;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .picker-btn:hover { background: var(--paper); }
+  .picker-btn.active {
+    background: var(--ink);
+    color: white;
+  }
+  .picker-btn.locked {
+    opacity: .55;
+    cursor: not-allowed;
+  }
+  .picker-btn .badge {
+    background: rgba(201,93,46,.16);
+    color: var(--accent);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-weight: 700;
+  }
+  .picker-btn.active .badge { background: white; color: var(--accent); }
+  .picker-btn.locked .badge { background: var(--line); color: var(--ink-mute); }
+
+  /* ===== Destinations Grid ===== */
+  .dest-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+  .dest-card {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    overflow: hidden;
+    transition: all .2s;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    padding: 0;
+    font-family: inherit;
+  }
+  .dest-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+  }
+  .dest-photo {
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: var(--paper-deep);
+    background-size: cover;
+    background-position: center;
+    position: relative;
+  }
+  .dest-cat-tag {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(255,255,255,.95);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .dest-body {
+    padding: 14px 16px 16px;
+  }
+  .dest-name {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .dest-en {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 12px;
+    color: var(--ink-mute);
+    margin-bottom: 10px;
+  }
+  .dest-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+  }
+  .dest-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* ===== Why Us ===== */
+  .why-block {
+    background: linear-gradient(135deg, var(--paper) 0%, var(--bg-warm) 100%);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  .compare-card {
+    background: var(--bg-card);
+    border-radius: 18px;
+    padding: 28px;
+    border: 1px solid var(--line);
+  }
+  .compare-card.bad {
+    background: var(--bg-warm);
+    opacity: 0.85;
+  }
+  .compare-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+  .compare-tag.bad { background: rgba(120,90,70,.1); color: var(--ink-soft); }
+  .compare-tag.good { background: var(--accent-soft); color: var(--accent-deep); }
+  .compare-title {
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 16px;
+  }
+  .compare-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .compare-list li {
+    display: flex;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  .compare-list .ic {
+    flex-shrink: 0;
+    width: 18px;
+    text-align: center;
+    font-weight: 800;
+  }
+  .compare-card.bad .ic { color: #b86a5b; }
+  .compare-card.good .ic { color: var(--green); }
+  .compare-card.good { border-color: var(--accent); border-width: 2px; padding: 27px; }
+  .compare-card.good li { color: var(--ink); }
+
+  /* ===== CTA Banner ===== */
+  .cta-banner {
+    max-width: 1100px;
+    margin: 0 auto;
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 24px;
+    padding: 48px;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 36px;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-banner::before {
+    content: "";
+    position: absolute;
+    top: -100px;
+    right: -100px;
+    width: 320px;
+    height: 320px;
+    background: radial-gradient(circle, rgba(201,93,46,.4), transparent 60%);
+    pointer-events: none;
+  }
+  .cta-eyebrow {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    color: var(--accent);
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  .cta-title {
+    font-size: 32px;
+    font-weight: 900;
+    line-height: 1.2;
+    margin-bottom: 14px;
+  }
+  .cta-desc {
+    color: rgba(255,249,237,.75);
+    font-size: 14px;
+    margin-bottom: 22px;
+  }
+  .cta-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .btn-cta-kakao {
+    background: #FEE500;
+    color: #181600;
+    padding: 13px 22px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+  }
+  .btn-cta-kakao:hover { background: #FFD600; }
+  .btn-cta-whatsapp {
+    background: #25D366;
+    color: white;
+    padding: 13px 22px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+  }
+  .btn-cta-whatsapp:hover { background: #1ebe57; }
+
+  .cta-mock {
+    background: rgba(255,249,237,.08);
+    border: 1px solid rgba(255,249,237,.16);
+    border-radius: 16px;
+    padding: 20px;
+    position: relative;
+    z-index: 1;
+  }
+  .cta-mock-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px dashed rgba(255,249,237,.12);
+    font-size: 13px;
+    color: rgba(255,249,237,.85);
+  }
+  .cta-mock-row:last-child { border: none; }
+  .cta-mock-row b { color: var(--paper); font-weight: 700; }
+  .cta-mock-row .v { color: var(--accent); font-weight: 700; }
+
+  /* ===== Footer ===== */
+  footer {
+    background: var(--bg-warm);
+    border-top: 1px solid var(--line);
+    padding: 40px 28px 28px;
+  }
+  .foot-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    color: var(--ink-soft);
+    font-size: 13px;
+  }
+  .foot-links {
+    display: flex;
+    gap: 18px;
+  }
+  .foot-links a:hover { color: var(--accent); }
+  .foot-bottom {
+    max-width: 1280px;
+    margin: 22px auto 0;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-mute);
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+  }
+
+  /* ===== Lang toggle visibility ===== */
+  body[data-lang="en"] .ko-text { display: none; }
+  body[data-lang="ko"] .en-text { display: none; }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 968px) {
+    .nav-links { display: none; }
+    .hero {
+      grid-template-columns: 1fr;
+      gap: 28px;
+      padding: 36px 20px 24px;
+    }
+    .hero h1 { font-size: 36px; }
+    .hero-stats { gap: 20px; }
+    .stat-num { font-size: 22px; }
+    .services { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .service { padding: 20px 16px; }
+    .dest-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .block-title { font-size: 26px; }
+    section.block { padding: 40px 20px; }
+    .compare { grid-template-columns: 1fr; gap: 14px; }
+    .cta-banner { grid-template-columns: 1fr; padding: 32px 24px; gap: 24px; }
+    .cta-title { font-size: 24px; }
+    .region-card { padding: 5px 10px 5px 6px; }
+    .region-img { width: 28px; height: 28px; font-size: 14px; border-radius: 7px; }
+    .region-name { font-size: 11px; }
+    .region-meta { font-size: 9px; }
+    .map-card { padding: 14px; }
+  }
+  @media (max-width: 540px) {
+    .services { grid-template-columns: 1fr 1fr; }
+    .dest-grid { grid-template-columns: 1fr 1fr; }
+    .nav-cta .lang-toggle { display: none; }
+    .hero h1 { font-size: 30px; }
+  }
+</style>
+</head>
+<body data-lang="ko">
+
+<!-- ========= NAV ========= -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="ktm_main.html">
+      <div class="brand-mark">K</div>
+      <div>
+        <div class="brand-text">KTM</div>
+      </div>
+      <span class="brand-sub ko-text">알마티 프라이빗 투어</span>
+      <span class="brand-sub en-text">Almaty Private Tours</span>
+    </a>
+    <div class="nav-links">
+      <a href="#regions" class="ko-text">여행지</a><a href="#regions" class="en-text">Destinations</a>
+      <a href="#services" class="ko-text">서비스</a><a href="#services" class="en-text">Services</a>
+      <a href="#why" class="ko-text">왜 KTM</a><a href="#why" class="en-text">Why KTM</a>
+      <a href="#contact" class="ko-text">상담</a><a href="#contact" class="en-text">Contact</a>
+    </div>
+    <div class="nav-cta">
+      <div class="lang-toggle">
+        <button class="lang-btn active" onclick="setLang('ko')">KR</button>
+        <button class="lang-btn" onclick="setLang('en')">EN</button>
+      </div>
+      <button class="nav-btn" onclick="scrollTo('#contact')">
+        <span class="ko-text">무료 상담</span>
+        <span class="en-text">Get Quote</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ========= HERO ========= -->
+<section class="hero">
+  <div class="hero-text">
+    <div class="hero-tag">
+      <span class="ko-text">실제 가이드 · 진짜 프라이빗</span>
+      <span class="en-text">Local Guides · Truly Private</span>
+    </div>
+    <h1 class="ko-text">콩나물 투어 말고,<br><em>나만의 카자흐스탄</em></h1>
+    <h1 class="en-text">Skip the crowded vans.<br><em>Travel Kazakhstan, your way.</em></h1>
+    <p class="hero-lead ko-text">
+      새벽 6시 출발 · 14인승 미니밴 · 강행군 일정. <b>이제 그만.</b><br>
+      KTM은 알마티 근교를 진짜 여행하고 싶은 분들을 위해
+      프라이빗 차량 · 시골 숙박 · 맞춤 일정을 한 곳에서 연결합니다.
+    </p>
+    <p class="hero-lead en-text">
+      No 6AM starts. No 14-seater vans. No rushed itineraries.
+      KTM connects you with private drivers, countryside lodging, and a
+      custom itinerary — all in one place.
+    </p>
+
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="ktm_almaty.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+        </svg>
+        <span class="ko-text">알마티 여행지도 열기</span>
+        <span class="en-text">Open Almaty Map</span>
+      </a>
+      <a class="btn btn-ghost" href="#planner">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+        </svg>
+        <span class="ko-text">나만의 일정 만들기</span>
+        <span class="en-text">Plan My Trip</span>
+      </a>
+    </div>
+
+    <div class="hero-stats">
+      <div>
+        <div class="stat-num">22+</div>
+        <div class="stat-label ko-text">엄선된 여행지</div>
+        <div class="stat-label en-text">Curated Spots</div>
+      </div>
+      <div>
+        <div class="stat-num">15</div>
+        <div class="stat-label ko-text">검증된 현지 기사</div>
+        <div class="stat-label en-text">Vetted Drivers</div>
+      </div>
+      <div>
+        <div class="stat-num">1:1</div>
+        <div class="stat-label ko-text">한국어 컨시어지</div>
+        <div class="stat-label en-text">Korean Concierge</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= KAZAKHSTAN MAP CARD ========= -->
+  <div class="map-card">
+    <div class="map-card-head">
+      <div>
+        <div class="map-card-title">Kazakhstan</div>
+        <div class="map-card-sub">— region of the wild —</div>
+      </div>
+      <div class="map-legend">
+        <span><i class="legend-dot active"></i><span class="ko-text">오픈</span><span class="en-text">Open</span></span>
+        <span><i class="legend-dot soon"></i><span class="ko-text">준비중</span><span class="en-text">Soon</span></span>
+      </div>
+    </div>
+
+    <div class="kz-map-wrap" id="kzMapWrap">
+      <svg class="kz-map-svg" viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <!-- Subtle paper texture (dots) -->
+          <pattern id="paperDots" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="0.5" fill="#C5A878" opacity="0.18"/>
+          </pattern>
+          <!-- Country fill gradient -->
+          <linearGradient id="kzFill" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0%" stop-color="#F7E9C9"/>
+            <stop offset="55%" stop-color="#F4DDB1"/>
+            <stop offset="100%" stop-color="#EDD09A"/>
+          </linearGradient>
+          <!-- Sea gradient -->
+          <linearGradient id="seaFill" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#C8DEE5"/>
+            <stop offset="100%" stop-color="#A8C7D0"/>
+          </linearGradient>
+          <!-- Highlight overlay for Almaty active region -->
+          <radialGradient id="almatyGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#C95D2E" stop-opacity="0.28"/>
+            <stop offset="60%" stop-color="#C95D2E" stop-opacity="0.08"/>
+            <stop offset="100%" stop-color="#C95D2E" stop-opacity="0"/>
+          </radialGradient>
+          <!-- Mountain shadow -->
+          <linearGradient id="mtnFill" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#8E7045"/>
+            <stop offset="100%" stop-color="#6B5232"/>
+          </linearGradient>
+          <linearGradient id="mtnSnow" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#FBF6E8"/>
+            <stop offset="100%" stop-color="#E6D7B0"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Background paper -->
+        <rect width="1000" height="540" fill="#FFF9ED"/>
+        <rect width="1000" height="540" fill="url(#paperDots)"/>
+
+        <!-- Caspian Sea (W) -->
+        <path d="M 0,210 Q 60,205 95,225 Q 110,250 100,295 Q 90,330 70,340 Q 40,360 30,400 Q 28,440 0,460 L 0,210 Z"
+              fill="url(#seaFill)" opacity="0.85"/>
+        <text x="22" y="320" font-family="Fraunces, serif" font-style="italic" font-size="13" fill="#5A7A82" opacity="0.8">Caspian</text>
+
+        <!-- Aral Sea (smaller, in SW) -->
+        <ellipse cx="245" cy="345" rx="22" ry="16" fill="url(#seaFill)" opacity="0.7"/>
+        <text x="220" y="375" font-family="Fraunces, serif" font-style="italic" font-size="9" fill="#5A7A82" opacity="0.7">Aral</text>
+
+        <!-- Lake Balkhash (mid-east) -->
+        <path d="M 640,300 Q 690,290 745,300 Q 790,308 805,322 Q 780,335 730,332 Q 680,330 640,322 Q 615,315 640,300 Z"
+              fill="url(#seaFill)" opacity="0.8"/>
+        <text x="690" y="350" font-family="Fraunces, serif" font-style="italic" font-size="10" fill="#5A7A82" opacity="0.85">Balkhash</text>
+
+        <!-- Kazakhstan country outline (stylized) -->
+        <path d="
+          M 100,118
+          Q 200,80 360,72
+          Q 540,65 700,80
+          Q 820,95 920,135
+          Q 960,155 955,195
+          Q 945,235 880,265
+          Q 850,278 825,295
+          L 815,340
+          Q 805,380 770,415
+          Q 730,445 685,440
+          L 580,440
+          Q 500,440 430,425
+          Q 380,415 340,420
+          Q 290,425 240,400
+          Q 195,375 165,370
+          L 105,375
+          Q 70,380 50,365
+          Q 30,335 50,300
+          Q 65,275 78,250
+          Q 90,222 80,195
+          Q 75,170 90,140
+          Q 96,128 100,118
+          Z"
+          fill="url(#kzFill)" stroke="#A4823A" stroke-width="1.5" stroke-linejoin="round"/>
+
+        <!-- Country dots overlay (subtle paper texture inside country) -->
+        <path d="
+          M 100,118 Q 200,80 360,72 Q 540,65 700,80 Q 820,95 920,135
+          Q 960,155 955,195 Q 945,235 880,265 Q 850,278 825,295
+          L 815,340 Q 805,380 770,415 Q 730,445 685,440
+          L 580,440 Q 500,440 430,425 Q 380,415 340,420
+          Q 290,425 240,400 Q 195,375 165,370 L 105,375
+          Q 70,380 50,365 Q 30,335 50,300 Q 65,275 78,250
+          Q 90,222 80,195 Q 75,170 90,140 Q 96,128 100,118 Z"
+          fill="url(#paperDots)" opacity="0.5"/>
+
+        <!-- Steppe scribble texture (decorative grass/dunes) -->
+        <g stroke="#B6924E" stroke-width="0.9" fill="none" opacity="0.45" stroke-linecap="round">
+          <path d="M 250,180 Q 270,175 290,180"/>
+          <path d="M 310,170 Q 330,165 350,170"/>
+          <path d="M 480,150 Q 500,145 520,150"/>
+          <path d="M 600,170 Q 620,165 640,170"/>
+          <path d="M 480,250 Q 510,245 540,250"/>
+          <path d="M 400,300 Q 430,295 460,300"/>
+          <path d="M 580,330 Q 610,325 640,330"/>
+        </g>
+
+        <!-- Tien Shan mountains in SE near Almaty -->
+        <g>
+          <!-- Back layer -->
+          <path d="M 700,400 L 740,355 L 765,380 L 795,340 L 830,385 L 870,355 L 905,400 Z"
+                fill="url(#mtnFill)" opacity="0.6"/>
+          <!-- Front layer -->
+          <path d="M 690,420 L 720,385 L 750,410 L 785,375 L 815,415 L 855,385 L 895,420 Z"
+                fill="url(#mtnFill)"/>
+          <!-- Snow caps -->
+          <path d="M 718,389 L 720,385 L 722,389 Z" fill="url(#mtnSnow)"/>
+          <path d="M 783,378 L 785,375 L 787,378 Z" fill="url(#mtnSnow)"/>
+          <path d="M 853,388 L 855,385 L 857,388 Z" fill="url(#mtnSnow)"/>
+        </g>
+
+        <!-- Almaty active region glow -->
+        <circle cx="780" cy="395" r="80" fill="url(#almatyGlow)"/>
+
+        <!-- Compass rose -->
+        <g transform="translate(900,460)" opacity="0.85">
+          <circle r="26" fill="#FFF9ED" stroke="#A4823A" stroke-width="1"/>
+          <path d="M 0,-22 L 4,0 L 0,22 L -4,0 Z" fill="#A4823A"/>
+          <path d="M -22,0 L 0,-4 L 22,0 L 0,4 Z" fill="#C9A449" opacity="0.6"/>
+          <text y="-30" text-anchor="middle" font-family="Fraunces, serif" font-style="italic" font-size="10" fill="#A4823A">N</text>
+        </g>
+
+        <!-- Decorative dotted route line from Almaty toward east (Charyn area) -->
+        <path d="M 780,395 Q 815,400 845,395" stroke="#C95D2E" stroke-width="1.6" stroke-dasharray="2 4" fill="none" opacity="0.7"/>
+        <circle cx="845" cy="395" r="3" fill="#C95D2E" opacity="0.7"/>
+
+        <!-- Decorative yurt icon (steppe culture) -->
+        <g transform="translate(450,250)" opacity="0.55">
+          <path d="M -10,5 Q 0,-9 10,5 Z" fill="#FFF9ED" stroke="#A4823A" stroke-width="0.9"/>
+          <line x1="0" y1="-9" x2="0" y2="5" stroke="#A4823A" stroke-width="0.6"/>
+          <line x1="-7" y1="0" x2="7" y2="0" stroke="#A4823A" stroke-width="0.4"/>
+        </g>
+
+        <!-- Decorative sun in NW -->
+        <g transform="translate(170,165)" opacity="0.45">
+          <circle r="8" fill="none" stroke="#C9A449" stroke-width="1"/>
+          <g stroke="#C9A449" stroke-width="0.8" stroke-linecap="round">
+            <line x1="0" y1="-12" x2="0" y2="-15"/>
+            <line x1="0" y1="12" x2="0" y2="15"/>
+            <line x1="-12" y1="0" x2="-15" y2="0"/>
+            <line x1="12" y1="0" x2="15" y2="0"/>
+            <line x1="-9" y1="-9" x2="-11" y2="-11"/>
+            <line x1="9" y1="9" x2="11" y2="11"/>
+            <line x1="-9" y1="9" x2="-11" y2="11"/>
+            <line x1="9" y1="-9" x2="11" y2="-11"/>
+          </g>
+        </g>
+
+        <!-- City labels (subtle) -->
+        <g font-family="Fraunces, serif" font-size="11" fill="#6B5A49" opacity="0.55">
+          <text x="380" y="115" font-style="italic">Astana</text>
+          <text x="475" y="445" font-style="italic">Shymkent</text>
+          <text x="105" y="395" font-style="italic">Aktau</text>
+          <text x="755" y="425" font-style="italic" font-weight="700" fill="#C95D2E" opacity="1">Almaty</text>
+        </g>
+
+        <!-- Ground markers (small dots at each region position) -->
+        <g>
+          <circle cx="780" cy="395" r="5" fill="#C95D2E"/>
+          <circle cx="780" cy="395" r="9" fill="none" stroke="#C95D2E" stroke-width="1.2" opacity="0.5"/>
+          <circle cx="105" cy="375" r="3.5" fill="#9A8B78"/>
+          <circle cx="455" cy="430" r="3.5" fill="#9A8B78"/>
+          <circle cx="385" cy="100" r="3.5" fill="#9A8B78"/>
+        </g>
+
+        <!-- Border decoration -->
+        <rect x="6" y="6" width="988" height="528" rx="14" fill="none" stroke="#A4823A" stroke-width="0.6" stroke-dasharray="3 4" opacity="0.4"/>
+
+        <!-- Scale / vintage label -->
+        <g transform="translate(50,495)" opacity="0.7">
+          <line x1="0" y1="0" x2="80" y2="0" stroke="#6B5A49" stroke-width="1"/>
+          <line x1="0" y1="-4" x2="0" y2="4" stroke="#6B5A49" stroke-width="1"/>
+          <line x1="40" y1="-3" x2="40" y2="3" stroke="#6B5A49" stroke-width="1"/>
+          <line x1="80" y1="-4" x2="80" y2="4" stroke="#6B5A49" stroke-width="1"/>
+          <text x="0" y="18" font-family="Fraunces, serif" font-size="10" fill="#6B5A49" font-style="italic">0</text>
+          <text x="35" y="18" font-family="Fraunces, serif" font-size="10" fill="#6B5A49" font-style="italic">500</text>
+          <text x="75" y="18" font-family="Fraunces, serif" font-size="10" fill="#6B5A49" font-style="italic">km</text>
+        </g>
+      </svg>
+
+      <!-- HTML pin overlays (positioned by % so they scale with SVG) -->
+      <div class="region-pin active" style="left:78%; top:73%;" onclick="goAlmaty()">
+        <div class="region-card">
+          <div class="region-img">⛰️</div>
+          <div>
+            <div class="region-name ko-text">알마티</div>
+            <div class="region-name en-text">Almaty</div>
+            <div class="region-meta now ko-text">22곳 · 지금 열기</div>
+            <div class="region-meta now en-text">22 spots · Open now</div>
+          </div>
+        </div>
+        <div class="region-tail"></div>
+      </div>
+
+      <div class="region-pin soon" style="left:10.5%; top:69.5%;" onclick="comingSoon('Mangistau')">
+        <div class="region-card">
+          <div class="region-img">🏜️</div>
+          <div>
+            <div class="region-name ko-text">망기스타우</div>
+            <div class="region-name en-text">Mangistau</div>
+            <div class="region-meta ko-text">2026 · 준비중</div>
+            <div class="region-meta en-text">Coming 2026</div>
+          </div>
+        </div>
+        <div class="region-tail"></div>
+      </div>
+
+      <div class="region-pin soon" style="left:45.5%; top:80%;" onclick="comingSoon('Shymkent')">
+        <div class="region-card">
+          <div class="region-img">🕌</div>
+          <div>
+            <div class="region-name ko-text">침켄트</div>
+            <div class="region-name en-text">Shymkent</div>
+            <div class="region-meta ko-text">실크로드 · 준비중</div>
+            <div class="region-meta en-text">Silk Road · Soon</div>
+          </div>
+        </div>
+        <div class="region-tail"></div>
+      </div>
+
+      <div class="region-pin soon" style="left:38.5%; top:18%;" onclick="comingSoon('Astana')">
+        <div class="region-card">
+          <div class="region-img">🏙️</div>
+          <div>
+            <div class="region-name ko-text">아스타나</div>
+            <div class="region-name en-text">Astana</div>
+            <div class="region-meta ko-text">수도 · 준비중</div>
+            <div class="region-meta en-text">Capital · Soon</div>
+          </div>
+        </div>
+        <div class="region-tail"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========= SERVICES ========= -->
+<section class="block" id="services">
+  <div class="block-head">
+    <div class="block-eyebrow ko-text">핵심 서비스</div>
+    <div class="block-eyebrow en-text">Core Services</div>
+    <h2 class="block-title ko-text">예약, <em>한 번에 끝</em></h2>
+    <h2 class="block-title en-text">Book everything, <em>in one place</em></h2>
+    <p class="block-sub ko-text">차량부터 시골 게스트하우스, 알마티 호텔, 일정까지 — 다른 사이트를 뒤질 필요가 없습니다.</p>
+    <p class="block-sub en-text">From private drivers to countryside stays, Almaty hotels, and itinerary — no more juggling sites.</p>
+  </div>
+
+  <div class="services">
+    <div class="service" onclick="scrollTo('#contact')">
+      <div class="service-icon car">🚗</div>
+      <div class="service-name ko-text">프라이빗 차량 매칭</div>
+      <div class="service-name en-text">Private Driver Match</div>
+      <div class="service-desc ko-text">검증된 현지 기사와 SUV/세단 매칭. 1박2일·2박3일·자유일정.</div>
+      <div class="service-desc en-text">Vetted Russian/English-speaking drivers with SUV or sedan, flexible day plans.</div>
+      <div class="service-link">
+        <span class="ko-text">기사 매칭 →</span>
+        <span class="en-text">Match driver →</span>
+      </div>
+    </div>
+
+    <div class="service" onclick="scrollTo('#contact')">
+      <div class="service-icon bed">🏡</div>
+      <div class="service-name ko-text">시골 숙박 예약</div>
+      <div class="service-name en-text">Countryside Stay</div>
+      <div class="service-desc ko-text">사티 마을·바스히 게스트하우스 — 부킹닷컴에 없는 현지 숙소를 직접 연결.</div>
+      <div class="service-desc en-text">Saty, Basshi & yurt stays you can't find on Booking.com — booked direct.</div>
+      <div class="service-link">
+        <span class="ko-text">숙소 보기 →</span>
+        <span class="en-text">See stays →</span>
+      </div>
+    </div>
+
+    <div class="service" onclick="scrollTo('#contact')">
+      <div class="service-icon hotel">🏨</div>
+      <div class="service-name ko-text">알마티 호텔 큐레이션</div>
+      <div class="service-name en-text">Almaty Hotels</div>
+      <div class="service-desc ko-text">위치·평점·가성비 기준으로 추린 시내 호텔 리스트. 더 이상 검색 NO.</div>
+      <div class="service-desc en-text">Hand-picked hotels by location, rating, value — no more endless scrolling.</div>
+      <div class="service-link">
+        <span class="ko-text">호텔 보기 →</span>
+        <span class="en-text">View hotels →</span>
+      </div>
+    </div>
+
+    <div class="service" onclick="scrollTo('#planner')" id="planner-card">
+      <div class="service-icon plan">📅</div>
+      <div class="service-name ko-text">나만의 일정 설계</div>
+      <div class="service-name en-text">Custom Itinerary</div>
+      <div class="service-desc ko-text">1박2일~5박6일까지 직접 조합. 차른+콜사이 같은 클러스터 추천.</div>
+      <div class="service-desc en-text">Combine 2D1N to 6D5N your way. Smart cluster suggestions like Charyn+Kolsai.</div>
+      <div class="service-link">
+        <span class="ko-text">일정 만들기 →</span>
+        <span class="en-text">Build trip →</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========= REGIONS / DESTINATIONS ========= -->
+<section class="block" id="regions">
+  <div class="block-head">
+    <div class="block-eyebrow ko-text">인기 여행지</div>
+    <div class="block-eyebrow en-text">Top Destinations</div>
+    <h2 class="block-title ko-text">알마티 근교 <em>꼭 가야 할 곳</em></h2>
+    <h2 class="block-title en-text">Almaty Region <em>must-sees</em></h2>
+    <p class="block-sub ko-text">눌러서 상세 가이드 · 이동 시간 · 비용 · 추천 동선까지 한눈에.</p>
+    <p class="block-sub en-text">Tap any spot to see distance, drive time, cost, and the best route.</p>
+  </div>
+
+  <div class="picker-bar">
+    <button class="picker-btn active">
+      <span>⛰️</span><span class="ko-text">알마티</span><span class="en-text">Almaty</span>
+      <span class="badge ko-text">오픈</span><span class="badge en-text">OPEN</span>
+    </button>
+    <button class="picker-btn locked" onclick="comingSoon('Mangistau')">
+      <span>🏜️</span><span class="ko-text">망기스타우</span><span class="en-text">Mangistau</span>
+      <span class="badge ko-text">준비중</span><span class="badge en-text">SOON</span>
+    </button>
+    <button class="picker-btn locked" onclick="comingSoon('Shymkent')">
+      <span>🕌</span><span class="ko-text">침켄트</span><span class="en-text">Shymkent</span>
+      <span class="badge ko-text">준비중</span><span class="badge en-text">SOON</span>
+    </button>
+    <button class="picker-btn locked" onclick="comingSoon('Astana')">
+      <span>🏙️</span><span class="ko-text">아스타나</span><span class="en-text">Astana</span>
+      <span class="badge ko-text">준비중</span><span class="badge en-text">SOON</span>
+    </button>
+  </div>
+
+  <div class="dest-grid" id="destGrid"></div>
+
+  <div style="text-align:center; margin-top: 32px;">
+    <a class="btn btn-ghost" href="ktm_almaty.html">
+      <span class="ko-text">전체 22곳 지도에서 보기</span>
+      <span class="en-text">See all 22 on the map</span>
+      <span>→</span>
+    </a>
+  </div>
+</section>
+
+<!-- ========= WHY US ========= -->
+<section class="why-block" id="why">
+  <div class="block">
+    <div class="block-head">
+      <div class="block-eyebrow ko-text">왜 KTM</div>
+      <div class="block-eyebrow en-text">Why KTM</div>
+      <h2 class="block-title ko-text">단체투어 vs <em>KTM 프라이빗</em></h2>
+      <h2 class="block-title en-text">Mass tour vs <em>KTM Private</em></h2>
+    </div>
+
+    <div class="compare">
+      <div class="compare-card bad">
+        <span class="compare-tag bad ko-text">기존 단체투어</span>
+        <span class="compare-tag bad en-text">Typical group tour</span>
+        <h3 class="compare-title ko-text">콩나물 시루 미니밴</h3>
+        <h3 class="compare-title en-text">Crammed minivan</h3>
+        <ul class="compare-list">
+          <li><span class="ic">✕</span><span class="ko-text">새벽 6시 픽업, 밤 10시 알마티 도착</span><span class="en-text">6AM pickup, back by 10PM</span></li>
+          <li><span class="ic">✕</span><span class="ko-text">14인승 미니밴에 사람 가득, 차 컨디션 ?</span><span class="en-text">14-seat van packed, vehicle quality unknown</span></li>
+          <li><span class="ic">✕</span><span class="ko-text">관광지마다 30분 강제 컷</span><span class="en-text">30-min forced stops everywhere</span></li>
+          <li><span class="ic">✕</span><span class="ko-text">한국어 안내 NO, 통역 NO</span><span class="en-text">No Korean guide, no translation</span></li>
+          <li><span class="ic">✕</span><span class="ko-text">사진 찍을 시간도 없는 강행군</span><span class="en-text">Rushed — barely time for photos</span></li>
+        </ul>
+      </div>
+
+      <div class="compare-card good">
+        <span class="compare-tag good ko-text">KTM 프라이빗 투어</span>
+        <span class="compare-tag good en-text">KTM Private</span>
+        <h3 class="compare-title ko-text">내 차, 내 일정, 내 페이스</h3>
+        <h3 class="compare-title en-text">Your car, your pace, your call</h3>
+        <ul class="compare-list">
+          <li><span class="ic">✓</span><span class="ko-text">출발 시간 자유 · 1박2일 권장 (콜사이 호숫가에서 1박)</span><span class="en-text">Flexible start · 2D1N recommended (overnight at Kolsai)</span></li>
+          <li><span class="ic">✓</span><span class="ko-text">SUV/세단 1:1 매칭 · 4인 가족이면 4인만 탑승</span><span class="en-text">Private SUV/sedan · just your party in the car</span></li>
+          <li><span class="ic">✓</span><span class="ko-text">원하는 곳에서 원하는 만큼 머물기</span><span class="en-text">Stop where you want, for as long as you want</span></li>
+          <li><span class="ic">✓</span><span class="ko-text">한국어 컨시어지 1:1 카톡 지원</span><span class="en-text">1:1 Korean concierge via KakaoTalk</span></li>
+          <li><span class="ic">✓</span><span class="ko-text">차른+콜사이+카인디 같은 클러스터 추천 일정</span><span class="en-text">Smart cluster routes (Charyn+Kolsai+Kaindy)</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========= CTA / CONTACT ========= -->
+<section class="block" id="contact">
+  <div class="cta-banner">
+    <div>
+      <div class="cta-eyebrow ko-text">3분이면 끝나는 무료 상담</div>
+      <div class="cta-eyebrow en-text">Free 3-minute consultation</div>
+      <h2 class="cta-title ko-text">일정만 알려주시면<br>차량·숙소·동선까지<br>한 번에 견적 드립니다.</h2>
+      <h2 class="cta-title en-text">Tell us your dates —<br>we'll quote car,<br>stays & route in one go.</h2>
+      <p class="cta-desc ko-text">한국어 컨시어지가 카카오톡으로 1:1 답변. 24시간 내 응답.</p>
+      <p class="cta-desc en-text">Korean concierge replies via KakaoTalk within 24h.</p>
+      <div class="cta-buttons">
+        <a class="btn-cta-kakao" href="#" onclick="openKakao();return false;">
+          <span>💬</span>
+          <span class="ko-text">카카오톡 1:1 상담</span>
+          <span class="en-text">KakaoTalk 1:1</span>
+        </a>
+        <a class="btn-cta-whatsapp" href="https://wa.me/77000000000" target="_blank" rel="noopener">
+          <span>📱</span>
+          <span>WhatsApp</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="cta-mock">
+      <div style="font-family:'Fraunces',serif; font-style:italic; font-size:13px; color: rgba(255,249,237,.7); margin-bottom:8px;">
+        <span class="ko-text">예시 견적</span><span class="en-text">Sample quote</span>
+      </div>
+      <div class="cta-mock-row">
+        <span><b class="ko-text">코스</b><b class="en-text">Route</b></span>
+        <span class="ko-text">차른+콜사이 1박2일</span>
+        <span class="en-text">Charyn+Kolsai 2D1N</span>
+      </div>
+      <div class="cta-mock-row">
+        <span><b class="ko-text">차량</b><b class="en-text">Vehicle</b></span>
+        <span class="ko-text">현대 산타페 (4인)</span>
+        <span class="en-text">Hyundai Santa Fe (4 pax)</span>
+      </div>
+      <div class="cta-mock-row">
+        <span><b class="ko-text">숙박</b><b class="en-text">Stay</b></span>
+        <span class="ko-text">사티 마을 게스트하우스</span>
+        <span class="en-text">Saty guesthouse</span>
+      </div>
+      <div class="cta-mock-row">
+        <span><b class="ko-text">예상 비용</b><b class="en-text">Est. cost</b></span>
+        <span class="v">USD 480 / 4인</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========= FOOTER ========= -->
+<footer>
+  <div class="foot-inner">
+    <div class="brand">
+      <div class="brand-mark">K</div>
+      <div>
+        <div class="brand-text">KTM</div>
+        <div class="brand-sub ko-text">알마티 프라이빗 투어</div>
+        <div class="brand-sub en-text">Almaty Private Tours</div>
+      </div>
+    </div>
+    <div class="foot-links">
+      <a href="ktm_almaty.html"><span class="ko-text">알마티 지도</span><span class="en-text">Almaty Map</span></a>
+      <a href="#services"><span class="ko-text">서비스</span><span class="en-text">Services</span></a>
+      <a href="#contact"><span class="ko-text">상담</span><span class="en-text">Contact</span></a>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    © KTM Travel · Almaty, Kazakhstan · Made for travelers who want the real thing.
+  </div>
+</footer>
+
+<script>
+  // ========= DATA (mirror of Almaty top spots) =========
+  var TOP_SPOTS = [
+    { id:"charyn",  name_ko:"차른 캐년",      name_en:"Charyn Canyon",    cat_ko:"자연",   cat_en:"Nature",
+      distance:"195km", time_ko:"3시간 30분", time_en:"3.5h",
+      photo:"linear-gradient(135deg,#C46A2B 0%,#7a3a14 100%)",
+      img:"https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=600&q=70" },
+    { id:"kolsai",  name_ko:"콜사이 호수",     name_en:"Kolsai Lakes",     cat_ko:"호수",   cat_en:"Lakes",
+      distance:"285km", time_ko:"4시간 30분", time_en:"4.5h",
+      photo:"linear-gradient(135deg,#3F8297 0%,#1c4956 100%)",
+      img:"https://images.unsplash.com/photo-1465056836041-7f43ac27dcb5?auto=format&fit=crop&w=600&q=70" },
+    { id:"kaindy",  name_ko:"카인디 호수",     name_en:"Kaindy Lake",      cat_ko:"호수",   cat_en:"Lakes",
+      distance:"300km", time_ko:"5시간",      time_en:"5h",
+      photo:"linear-gradient(135deg,#3F8297 0%,#1c4956 100%)",
+      img:"https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=600&q=70" },
+    { id:"bao",     name_ko:"빅 알마티 호수",   name_en:"Big Almaty Lake",  cat_ko:"호수",   cat_en:"Lakes",
+      distance:"35km",  time_ko:"1시간 15분", time_en:"1.25h",
+      photo:"linear-gradient(135deg,#3F8297 0%,#1c4956 100%)",
+      img:"https://images.unsplash.com/photo-1506260408121-e353d10b87c7?auto=format&fit=crop&w=600&q=70" },
+    { id:"singing-dune", name_ko:"노래하는 사막", name_en:"Singing Dune",   cat_ko:"자연",   cat_en:"Nature",
+      distance:"300km", time_ko:"5시간",      time_en:"5h",
+      photo:"linear-gradient(135deg,#C9A449 0%,#7a6321 100%)",
+      img:"https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?auto=format&fit=crop&w=600&q=70" },
+    { id:"aktau-mountains", name_ko:"악타우 산맥", name_en:"Aktau Mountains", cat_ko:"자연", cat_en:"Nature",
+      distance:"330km", time_ko:"6시간",      time_en:"6h",
+      photo:"linear-gradient(135deg,#5C8A4C 0%,#2e4a25 100%)",
+      img:"https://images.unsplash.com/photo-1454942901704-3c44c11b2ad1?auto=format&fit=crop&w=600&q=70" },
+    { id:"medeu",   name_ko:"메데우",         name_en:"Medeu",            cat_ko:"시내",   cat_en:"City",
+      distance:"15km",  time_ko:"30분",       time_en:"30min",
+      photo:"linear-gradient(135deg,#c4471c 0%,#7a2e10 100%)",
+      img:"https://images.unsplash.com/photo-1551033406-611cf9a28f67?auto=format&fit=crop&w=600&q=70" },
+    { id:"shymbulak", name_ko:"심불락",       name_en:"Shymbulak",        cat_ko:"시내",   cat_en:"City",
+      distance:"25km",  time_ko:"45분",       time_en:"45min",
+      photo:"linear-gradient(135deg,#c4471c 0%,#7a2e10 100%)",
+      img:"https://images.unsplash.com/photo-1551524559-8af4e6624178?auto=format&fit=crop&w=600&q=70" }
+  ];
+
+  // ========= STATE =========
+  var lang = 'ko';
+
+  // ========= RENDER =========
+  function renderDestinations() {
+    var grid = document.getElementById('destGrid');
+    var html = '';
+    TOP_SPOTS.forEach(function(s) {
+      html +=
+        '<button class="dest-card" onclick="openSpot(\'' + s.id + '\')">' +
+          '<div class="dest-photo" style="background-image:' + s.photo + ',url(\'' + s.img + '\');">' +
+            '<div class="dest-cat-tag">' +
+              '<span class="ko-text">' + s.cat_ko + '</span>' +
+              '<span class="en-text">' + s.cat_en + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="dest-body">' +
+            '<div class="dest-name">' +
+              '<span class="ko-text">' + s.name_ko + '</span>' +
+              '<span class="en-text">' + s.name_en + '</span>' +
+            '</div>' +
+            '<div class="dest-en">' + s.name_en + '</div>' +
+            '<div class="dest-meta">' +
+              '<span class="dest-meta-item">📍 ' + s.distance + '</span>' +
+              '<span class="dest-meta-item">⏱ ' +
+                '<span class="ko-text">' + s.time_ko + '</span>' +
+                '<span class="en-text">' + s.time_en + '</span>' +
+              '</span>' +
+            '</div>' +
+          '</div>' +
+        '</button>';
+    });
+    grid.innerHTML = html;
+  }
+
+  // ========= ACTIONS =========
+  function openSpot(id) {
+    window.location.href = 'ktm_almaty.html#' + encodeURIComponent(id);
+  }
+  function goAlmaty() {
+    window.location.href = 'ktm_almaty.html';
+  }
+  function comingSoon(region) {
+    alert(lang === 'en'
+      ? region + ' is coming in 2026 — join the waitlist via KakaoTalk!'
+      : region + ' 지역은 2026년 오픈 예정입니다. 카카오톡으로 알림 신청하세요!');
+  }
+  function openKakao() {
+    alert(lang === 'en'
+      ? '📱 KakaoTalk channel coming soon! Use WhatsApp for now.'
+      : '📱 카카오톡 채널 연결 준비 중입니다.\n임시로 WhatsApp을 이용해 주세요.');
+  }
+  function scrollTo(sel) {
+    var el = document.querySelector(sel);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ========= LANG =========
+  function setLang(newLang) {
+    lang = newLang;
+    document.body.setAttribute('data-lang', newLang);
+    document.querySelectorAll('.lang-btn').forEach(function(btn) {
+      var btnLang = btn.textContent.trim().toUpperCase();
+      btn.classList.toggle('active',
+        (newLang === 'en' && btnLang === 'EN') ||
+        (newLang === 'ko' && btnLang === 'KR'));
+    });
+  }
+
+  // ========= INIT =========
+  window.addEventListener('DOMContentLoaded', function() {
+    renderDestinations();
+  });
+</script>
+</body>
+</html>
