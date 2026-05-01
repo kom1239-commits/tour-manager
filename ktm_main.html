@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>KTM — 알마티 근교 여행 지도</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,6 +33,7 @@
 
   html, body {
     height: 100%;
+    height: 100dvh;
     background: var(--bg);
     color: var(--ink);
     font-family: 'Noto Sans KR', sans-serif;
@@ -381,10 +382,10 @@
     margin-top: 1px;
   }
 
-  /* Hover hint card on top */
+  /* Hover hint card (sits BELOW topbar so it doesn't overlap) */
   .hint-pill {
     position: absolute;
-    top: 12px;
+    top: 70px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 999;
@@ -400,6 +401,9 @@
     color: var(--ink-soft);
     white-space: nowrap;
     animation: fadeInDown 0.5s ease-out;
+    max-width: calc(100% - 28px);
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   @keyframes fadeInDown {
     from { opacity: 0; transform: translate(-50%, -8px); }
@@ -414,15 +418,25 @@
   /* Mobile */
   @media (max-width: 640px) {
     .brand-sub { display: none; }
+    .topbar { padding: 10px 12px; }
+    .brand { padding: 6px 12px 6px 6px; }
+    .brand-mark { width: 24px; height: 24px; font-size: 12px; }
+    .brand-text { font-size: 13px; }
     .my-loc-btn span { display: none; }
-    .my-loc-btn { padding: 8px; }
-    .leaflet-control-zoom { margin-top: 60px !important; margin-left: 12px !important; }
+    .my-loc-btn { padding: 7px; }
+    .lang-btn { padding: 4px 9px; font-size: 10px; }
+    .hint-pill {
+      top: 58px;
+      font-size: 11px;
+      padding: 6px 12px;
+    }
+    .leaflet-control-zoom { margin-top: 100px !important; margin-left: 12px !important; }
     .bottom-panel {
-      bottom: 12px;
+      bottom: 10px;
       padding: 12px 14px 10px;
       width: calc(100% - 16px);
     }
-    .legend { gap: 4px 8px; }
+    .legend { gap: 4px 8px; justify-content: center; }
     .legend-item { font-size: 11px; padding: 3px 6px; }
     .help-text { font-size: 10px; margin: 6px 0 8px; }
     .search-box { padding: 8px 12px; }
@@ -465,6 +479,23 @@
 
 <!-- ===== Map ===== -->
 <div id="map"></div>
+
+<!-- ===== Fallback shown if Leaflet fails to load ===== -->
+<div id="mapFallback" style="display:none; position:absolute; inset:0; z-index:500;
+     background: var(--bg); padding:80px 24px 200px; overflow-y:auto;">
+  <div style="max-width:520px; margin:0 auto; text-align:center;">
+    <div style="font-size:42px; margin-bottom:12px;">🗺️</div>
+    <h2 style="font-size:20px; font-weight:800; margin-bottom:10px;">
+      <span class="ko-text">지도를 불러오지 못했습니다</span>
+      <span class="en-text">Map could not load</span>
+    </h2>
+    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:18px; line-height:1.55;">
+      <span class="ko-text">네트워크 또는 미리보기 환경에서 지도 타일이 차단된 것 같습니다.<br>아래 리스트에서 여행지를 선택해 주세요.</span>
+      <span class="en-text">Tiles seem blocked by the network or preview env.<br>Pick a spot from the list below.</span>
+    </p>
+    <div id="fallbackList" style="display:flex; flex-direction:column; gap:8px; text-align:left;"></div>
+  </div>
+</div>
 
 <!-- ===== Bottom panel: legend + search ===== -->
 <div class="bottom-panel">
@@ -595,6 +626,11 @@
 
   // ===== INIT MAP =====
   function initMap() {
+    if (typeof L === 'undefined') {
+      showFallback();
+      return;
+    }
+
     map = L.map('map', {
       center: [43.45, 77.95],
       zoom: 8,
@@ -605,14 +641,23 @@
       attributionControl: true
     });
 
-    // Esri World Topo Map (matches the screenshot style)
-    L.tileLayer(
+    // Primary: Esri World Topo Map (matches the screenshot style)
+    var primary = L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-      {
-        attribution: 'Tiles © Esri',
-        maxZoom: 18
+      { attribution: 'Tiles © Esri', maxZoom: 18 }
+    );
+    // Fallback: OpenStreetMap (used if Esri tiles error out)
+    var fallback = L.tileLayer(
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { attribution: '© OpenStreetMap', maxZoom: 19 }
+    );
+    primary.on('tileerror', function() {
+      if (map.hasLayer(primary)) {
+        map.removeLayer(primary);
+        fallback.addTo(map);
       }
-    ).addTo(map);
+    });
+    primary.addTo(map);
 
     L.control.zoom({ position: 'topleft' }).addTo(map);
 
@@ -622,8 +667,47 @@
     var bounds = L.latLngBounds(PLACES.map(function(p) { return p.coords; }));
     map.fitBounds(bounds, { padding: [80, 60], maxZoom: 9 });
 
+    // Mobile: recompute size shortly after init (URL bar / iframe quirks)
+    setTimeout(function() { map.invalidateSize(); }, 250);
+    setTimeout(function() { map.invalidateSize(); }, 800);
+    window.addEventListener('resize', function() { map.invalidateSize(); });
+    window.addEventListener('orientationchange', function() {
+      setTimeout(function() { map.invalidateSize(); }, 200);
+    });
+
     // Hide hint after first interaction
     map.on('zoomstart movestart click', hideHint);
+  }
+
+  // ===== Fallback list (when Leaflet fails) =====
+  function showFallback() {
+    document.getElementById('map').style.display = 'none';
+    var fb = document.getElementById('mapFallback');
+    var list = document.getElementById('fallbackList');
+    var html = '';
+    PLACES.forEach(function(p) {
+      html += '<button onclick="openSpot(\'' + p.id + '\')" ' +
+              'style="display:flex; align-items:center; gap:12px; padding:12px 14px; ' +
+              'background:white; border:1px solid var(--line); border-radius:12px; ' +
+              'text-align:left; cursor:pointer; font-family:inherit; width:100%;">' +
+                '<span style="width:14px; height:14px; border-radius:50%; ' +
+                'border:2px solid white; box-shadow:0 1px 3px rgba(0,0,0,.25); ' +
+                'background:var(--c-' + p.category + ');"></span>' +
+                '<div style="flex:1;">' +
+                  '<div style="font-weight:700; font-size:14px;">' +
+                    '<span class="ko-text">' + p.name_ko + '</span>' +
+                    '<span class="en-text">' + p.name_en + '</span>' +
+                  '</div>' +
+                  '<div style="font-size:11px; color:var(--ink-mute); margin-top:2px;">' +
+                    '<span class="ko-text">' + p.meta_ko + '</span>' +
+                    '<span class="en-text">' + p.meta_en + '</span>' +
+                  '</div>' +
+                '</div>' +
+                '<span style="color:var(--ink-mute); font-size:18px;">›</span>' +
+              '</button>';
+    });
+    list.innerHTML = html;
+    fb.style.display = 'block';
   }
 
   function pinHTML(p) {
@@ -770,10 +854,20 @@
 
   // ===== INIT =====
   window.addEventListener('DOMContentLoaded', function() {
-    initMap();
     setupLegend();
     setupSearch();
     hintTimer = setTimeout(hideHint, 5000);
+
+    // If Leaflet didn't load (preview proxy / blocked CDN), show fallback list.
+    if (typeof L === 'undefined') {
+      // give it a beat in case the CDN is just slow
+      setTimeout(function() {
+        if (typeof L === 'undefined') showFallback();
+        else initMap();
+      }, 1500);
+    } else {
+      initMap();
+    }
   });
 </script>
 </body>
