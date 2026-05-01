@@ -1429,7 +1429,16 @@
     setupSearch();
     setupCategoryChips();
     renderList();
-    setTimeout(function() { selectPlace('charyn'); }, 600);
+    var hashId = decodeURIComponent((location.hash || '').replace('#', ''));
+    var initial = PLACES.find(function(x) { return x.id === hashId; }) ? hashId : 'charyn';
+    setTimeout(function() { selectPlace(initial); }, 600);
+  });
+
+  window.addEventListener('hashchange', function() {
+    var hashId = decodeURIComponent((location.hash || '').replace('#', ''));
+    if (PLACES.find(function(x) { return x.id === hashId; })) {
+      selectPlace(hashId);
+    }
   });
 </script>
 
