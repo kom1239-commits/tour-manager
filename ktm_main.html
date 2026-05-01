@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>KTM — 알마티 근교 여행 지도</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;0,900;1,400&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+  :root {
+    --bg: #FAF6EC;
+    --bg-card: #FFFFFF;
+    --paper: #FFF9ED;
+    --ink: #2b241d;
+    --ink-soft: #6B5A49;
+    --ink-mute: #9A8B78;
+    --accent: #C95D2E;
+    --line: #E8DDC8;
+    --shadow-md: 0 6px 18px rgba(0,0,0,0.10);
+    --shadow-lg: 0 14px 36px rgba(0,0,0,.14);
+
+    --c-city:    #C95D2E;
+    --c-canyon:  #B8722F;
+    --c-lake:    #3F8297;
+    --c-culture: #8b6f3a;
+    --c-nature:  #5C8A4C;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    height: 100dvh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Noto Sans KR', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  /* ===== Top floating bar ===== */
+  .topbar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    pointer-events: none;
+  }
+  .topbar > * { pointer-events: auto; }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 249, 237, 0.94);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 8px 14px 8px 8px;
+    border-radius: 999px;
+    box-shadow: var(--shadow-md);
+    text-decoration: none;
+  }
+  .brand-mark {
+    width: 28px;
+    height: 28px;
+    background: var(--ink);
+    color: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 14px;
+    border-radius: 50%;
+  }
+  .brand-text {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.05em;
+    color: var(--ink);
+  }
+  .brand-sub {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 11px;
+    color: var(--ink-mute);
+    margin-left: 2px;
+  }
+
+  .top-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .lang-toggle {
+    display: flex;
+    background: rgba(255, 249, 237, 0.94);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 999px;
+    padding: 3px;
+    box-shadow: var(--shadow-md);
+  }
+  .lang-btn {
+    padding: 5px 12px;
+    background: transparent;
+    border: none;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 11px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: 999px;
+    letter-spacing: 0.05em;
+  }
+  .lang-btn.active { background: var(--ink); color: var(--paper); }
+
+  .my-loc-btn {
+    background: rgba(255, 249, 237, 0.94);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: none;
+    border-radius: 999px;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+  }
+  .my-loc-btn:hover { background: var(--paper); }
+
+  /* ===== Map ===== */
+  #map {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+  }
+
+  /* Leaflet zoom control restyle */
+  .leaflet-control-zoom {
+    border: none !important;
+    box-shadow: var(--shadow-md) !important;
+    margin-top: 70px !important;
+    margin-left: 18px !important;
+    border-radius: 12px !important;
+    overflow: hidden;
+  }
+  .leaflet-control-zoom a {
+    background: rgba(255, 249, 237, 0.96) !important;
+    color: var(--ink) !important;
+    border: none !important;
+    border-bottom: 1px solid var(--line) !important;
+    font-weight: 700 !important;
+    width: 34px !important;
+    height: 34px !important;
+    line-height: 34px !important;
+  }
+  .leaflet-control-zoom a:last-child { border-bottom: none !important; }
+  .leaflet-control-zoom a:hover {
+    background: var(--paper) !important;
+    color: var(--accent) !important;
+  }
+  .leaflet-control-attribution {
+    background: rgba(255, 249, 237, 0.85) !important;
+    font-family: 'Fraunces', serif !important;
+    font-style: italic !important;
+    font-size: 10px !important;
+  }
+
+  /* ===== Pin ===== */
+  .pin-wrap {
+    background: transparent !important;
+    border: none !important;
+  }
+  .pin {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.30);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.18s;
+    position: relative;
+  }
+  .pin::after {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.95);
+  }
+  .pin:hover {
+    transform: scale(1.25);
+    z-index: 600;
+  }
+  .pin.large {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  .pin.large::after { display: none; }
+
+  .pin.city    { background: var(--c-city); }
+  .pin.canyon  { background: var(--c-canyon); }
+  .pin.lake    { background: var(--c-lake); }
+  .pin.culture { background: var(--c-culture); }
+  .pin.nature  { background: var(--c-nature); }
+
+  /* Pin label that appears on hover */
+  .pin-label {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink);
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    opacity: 0;
+    transition: opacity 0.15s;
+    pointer-events: none;
+  }
+  .pin-wrap:hover .pin-label { opacity: 1; }
+
+  /* ===== Bottom legend + search panel ===== */
+  .bottom-panel {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: min(680px, calc(100% - 28px));
+    background: rgba(255, 249, 237, 0.96);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 18px;
+    box-shadow: var(--shadow-lg);
+    padding: 16px 18px 14px;
+    border: 1px solid var(--line);
+  }
+
+  .legend {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 4px 8px;
+    border-radius: 999px;
+    transition: all 0.15s;
+  }
+  .legend-item:hover {
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .legend-item.active {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .legend-dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  }
+  .legend-dot.all     { background: linear-gradient(135deg, var(--c-canyon), var(--c-lake)); }
+  .legend-dot.city    { background: var(--c-city); }
+  .legend-dot.canyon  { background: var(--c-canyon); }
+  .legend-dot.lake    { background: var(--c-lake); }
+  .legend-dot.culture { background: var(--c-culture); }
+  .legend-dot.nature  { background: var(--c-nature); }
+
+  .help-text {
+    text-align: center;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 11px;
+    color: var(--ink-mute);
+    margin: 8px 0 10px;
+  }
+
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: white;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    transition: all 0.2s;
+  }
+  .search-box:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(201,93,46,.12);
+  }
+  .search-box svg { color: var(--ink-mute); flex-shrink: 0; }
+  .search-input {
+    border: none;
+    outline: none;
+    width: 100%;
+    background: transparent;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .search-input::placeholder { color: var(--ink-mute); }
+
+  /* ===== Search results dropdown ===== */
+  .search-results {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    max-height: 240px;
+    overflow-y: auto;
+    display: none;
+  }
+  .search-results.show { display: block; }
+  .search-result-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--line);
+    transition: background 0.1s;
+  }
+  .search-result-item:last-child { border-bottom: none; }
+  .search-result-item:hover { background: var(--paper); }
+  .search-result-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .search-result-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .search-result-meta {
+    font-size: 11px;
+    color: var(--ink-mute);
+    margin-top: 1px;
+  }
+
+  /* Hover hint card (sits BELOW topbar so it doesn't overlap) */
+  .hint-pill {
+    position: absolute;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999;
+    background: rgba(255, 249, 237, 0.96);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 8px 16px;
+    border-radius: 999px;
+    box-shadow: var(--shadow-md);
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 12px;
+    color: var(--ink-soft);
+    white-space: nowrap;
+    animation: fadeInDown 0.5s ease-out;
+    max-width: calc(100% - 28px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  @keyframes fadeInDown {
+    from { opacity: 0; transform: translate(-50%, -8px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+  .hint-pill.gone { display: none; }
+
+  /* Lang */
+  body[data-lang="en"] .ko-text { display: none; }
+  body[data-lang="ko"] .en-text { display: none; }
+
+  /* Mobile */
+  @media (max-width: 640px) {
+    .brand-sub { display: none; }
+    .topbar { padding: 10px 12px; }
+    .brand { padding: 6px 12px 6px 6px; }
+    .brand-mark { width: 24px; height: 24px; font-size: 12px; }
+    .brand-text { font-size: 13px; }
+    .my-loc-btn span { display: none; }
+    .my-loc-btn { padding: 7px; }
+    .lang-btn { padding: 4px 9px; font-size: 10px; }
+    .hint-pill {
+      top: 58px;
+      font-size: 11px;
+      padding: 6px 12px;
+    }
+    .leaflet-control-zoom { margin-top: 100px !important; margin-left: 12px !important; }
+    .bottom-panel {
+      bottom: 10px;
+      padding: 12px 14px 10px;
+      width: calc(100% - 16px);
+    }
+    .legend { gap: 4px 8px; justify-content: center; }
+    .legend-item { font-size: 11px; padding: 3px 6px; }
+    .help-text { font-size: 10px; margin: 6px 0 8px; }
+    .search-box { padding: 8px 12px; }
+    .search-input { font-size: 13px; }
+  }
+</style>
+</head>
+<body data-lang="ko">
+
+<!-- ===== Top bar (logo + lang + my location) ===== -->
+<div class="topbar">
+  <a class="brand" href="ktm_main.html">
+    <div class="brand-mark">K</div>
+    <div class="brand-text">KTM</div>
+    <span class="brand-sub ko-text">알마티 근교 지도</span>
+    <span class="brand-sub en-text">Almaty Region Map</span>
+  </a>
+
+  <div class="top-actions">
+    <button class="my-loc-btn" onclick="goToMyLocation()" title="My location">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+      </svg>
+      <span class="ko-text">내 위치</span>
+      <span class="en-text">My Loc</span>
+    </button>
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('ko')">KR</button>
+      <button class="lang-btn" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== First-visit hint ===== -->
+<div class="hint-pill" id="hintPill">
+  <span class="ko-text">핀을 눌러 여행지를 확인하세요</span>
+  <span class="en-text">Tap any pin to explore</span>
+</div>
+
+<!-- ===== Map ===== -->
+<div id="map"></div>
+
+<!-- ===== Fallback shown if Leaflet fails to load ===== -->
+<div id="mapFallback" style="display:none; position:absolute; inset:0; z-index:500;
+     background: var(--bg); padding:80px 24px 200px; overflow-y:auto;">
+  <div style="max-width:520px; margin:0 auto; text-align:center;">
+    <div style="font-size:42px; margin-bottom:12px;">🗺️</div>
+    <h2 style="font-size:20px; font-weight:800; margin-bottom:10px;">
+      <span class="ko-text">지도를 불러오지 못했습니다</span>
+      <span class="en-text">Map could not load</span>
+    </h2>
+    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:18px; line-height:1.55;">
+      <span class="ko-text">네트워크 또는 미리보기 환경에서 지도 타일이 차단된 것 같습니다.<br>아래 리스트에서 여행지를 선택해 주세요.</span>
+      <span class="en-text">Tiles seem blocked by the network or preview env.<br>Pick a spot from the list below.</span>
+    </p>
+    <div id="fallbackList" style="display:flex; flex-direction:column; gap:8px; text-align:left;"></div>
+  </div>
+</div>
+
+<!-- ===== Bottom panel: legend + search ===== -->
+<div class="bottom-panel">
+  <div class="legend" id="legend">
+    <button class="legend-item active" data-cat="all">
+      <span class="legend-dot all"></span>
+      <span class="ko-text">전체</span><span class="en-text">All</span>
+    </button>
+    <button class="legend-item" data-cat="city">
+      <span class="legend-dot city"></span>
+      <span class="ko-text">시내</span><span class="en-text">City</span>
+    </button>
+    <button class="legend-item" data-cat="canyon">
+      <span class="legend-dot canyon"></span>
+      <span class="ko-text">캐년</span><span class="en-text">Canyon</span>
+    </button>
+    <button class="legend-item" data-cat="lake">
+      <span class="legend-dot lake"></span>
+      <span class="ko-text">호수</span><span class="en-text">Lakes</span>
+    </button>
+    <button class="legend-item" data-cat="culture">
+      <span class="legend-dot culture"></span>
+      <span class="ko-text">문화·역사</span><span class="en-text">Culture</span>
+    </button>
+    <button class="legend-item" data-cat="nature">
+      <span class="legend-dot nature"></span>
+      <span class="ko-text">자연·사막</span><span class="en-text">Nature</span>
+    </button>
+  </div>
+
+  <div class="help-text">
+    <span class="ko-text">스크롤/핀치로 줌 · 핀 클릭하여 상세보기</span>
+    <span class="en-text">Scroll/pinch to zoom · tap a pin for detail</span>
+  </div>
+
+  <div style="position:relative;">
+    <div class="search-box">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" id="searchInput" class="search-input"
+             placeholder="명소 검색 (예: 차른, 콜사이)"
+             autocomplete="off">
+    </div>
+    <div class="search-results" id="searchResults"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+  // ===== DATA — 22 spots (synced with ktm_almaty.html) =====
+  var PLACES = [
+    { id:"charyn",          category:"canyon",  coords:[43.3598684, 79.0500292],
+      name_ko:"차른 캐년",            name_en:"Charyn Canyon",
+      meta_ko:"195km · 약 3시간 30분", meta_en:"195km · ~3.5h" },
+    { id:"black-canyon",    category:"canyon",  coords:[43.2688479, 78.9732188],
+      name_ko:"블랙 캐년",            name_en:"Black Canyon",
+      meta_ko:"215km · 약 3시간 30분", meta_en:"215km · ~3.5h" },
+    { id:"moon-canyon",     category:"canyon",  coords:[43.2887449, 78.9889382],
+      name_ko:"문 캐년",              name_en:"Moon Canyon",
+      meta_ko:"210km · 약 3시간 30분", meta_en:"210km · ~3.5h" },
+    { id:"saty-village",    category:"culture", coords:[43.0692, 78.4080],
+      name_ko:"사티 마을",            name_en:"Saty Village",
+      meta_ko:"280km · 약 4시간 30분", meta_en:"280km · ~4.5h" },
+    { id:"kolsai",          category:"lake",    coords:[42.935386, 78.3259016],
+      name_ko:"콜사이 호수",          name_en:"Kolsai Lakes",
+      meta_ko:"285km · 약 4시간 30분", meta_en:"285km · ~4.5h" },
+    { id:"kaindy",          category:"lake",    coords:[42.9840814, 78.4673797],
+      name_ko:"카인디 호수",          name_en:"Kaindy Lake",
+      meta_ko:"300km · 약 5시간",      meta_en:"300km · ~5h" },
+    { id:"tuzkol",          category:"lake",    coords:[43.0200, 79.0200],
+      name_ko:"투즈콜 호수",          name_en:"Tuzkol Lake",
+      meta_ko:"350km · 약 5시간",      meta_en:"350km · ~5h" },
+    { id:"bao",             category:"lake",    coords:[43.0517, 76.985],
+      name_ko:"빅 알마티 호수",       name_en:"Big Almaty Lake",
+      meta_ko:"35km · 약 1시간 15분",  meta_en:"35km · ~1.25h" },
+    { id:"issyk-lake",      category:"lake",    coords:[43.2658, 77.4581],
+      name_ko:"이식 호수",            name_en:"Issyk Lake",
+      meta_ko:"70km · 약 1시간 30분",  meta_en:"70km · ~1.5h" },
+    { id:"turgen-falls",    category:"nature",  coords:[43.3850, 77.6950],
+      name_ko:"투르겐 폭포",          name_en:"Turgen Falls",
+      meta_ko:"90km · 약 2시간",       meta_en:"90km · ~2h" },
+    { id:"assy-observatory",category:"nature",  coords:[43.2244, 77.8753],
+      name_ko:"아씨 고원 천문대",     name_en:"Assy Plateau",
+      meta_ko:"100km · 약 2시간 30분", meta_en:"100km · ~2.5h" },
+    { id:"tamgaly",         category:"culture", coords:[43.811, 77.066],
+      name_ko:"탐갈리타스",           name_en:"Tamgaly-Tas",
+      meta_ko:"120km · 약 2시간",      meta_en:"120km · ~2h" },
+    { id:"kapchagai",       category:"lake",    coords:[43.8800, 77.0700],
+      name_ko:"카프차가이 호수",      name_en:"Kapchagai Lake",
+      meta_ko:"70km · 약 1시간 30분",  meta_en:"70km · ~1.5h" },
+    { id:"nomad-set",       category:"culture", coords:[43.6100, 76.5800],
+      name_ko:"노마드 영화 세트장",   name_en:"Nomad Film Set",
+      meta_ko:"50km · 약 1시간",       meta_en:"50km · ~1h",
+      icon:"🎬" },
+    { id:"basshi",          category:"culture", coords:[44.1583, 78.7525],
+      name_ko:"바스히 마을",          name_en:"Basshi Village",
+      meta_ko:"250km · 약 4시간",      meta_en:"250km · ~4h" },
+    { id:"singing-dune",    category:"nature",  coords:[44.0900, 78.9530],
+      name_ko:"노래하는 사막",        name_en:"Singing Dune",
+      meta_ko:"300km · 약 5시간",      meta_en:"300km · ~5h" },
+    { id:"aktau-mountains", category:"nature",  coords:[43.8350, 79.1900],
+      name_ko:"악타우 산맥",          name_en:"Aktau Mountains",
+      meta_ko:"330km · 약 6시간",      meta_en:"330km · ~6h" },
+    { id:"koktobe",         category:"city",    coords:[43.2298, 76.9783],
+      name_ko:"콕토베",               name_en:"Kok-Tobe",
+      meta_ko:"시내 · 30분",           meta_en:"In-city · 30min" },
+    { id:"medeu",           category:"city",    coords:[43.1583, 77.0578],
+      name_ko:"메데우 빙상장",        name_en:"Medeu",
+      meta_ko:"15km · 30분",           meta_en:"15km · 30min" },
+    { id:"shymbulak",       category:"city",    coords:[43.1202, 77.0814],
+      name_ko:"심불락",               name_en:"Shymbulak",
+      meta_ko:"25km · 45분",           meta_en:"25km · 45min" },
+    { id:"green-bazaar",    category:"city",    coords:[43.2616, 76.9476],
+      name_ko:"그린 바자르",          name_en:"Green Bazaar",
+      meta_ko:"시내 · 30분",           meta_en:"In-city · 30min" },
+    { id:"panfilov",        category:"city",    coords:[43.2649, 76.9536],
+      name_ko:"판필로프 공원",        name_en:"Panfilov Park",
+      meta_ko:"시내 · 30분",           meta_en:"In-city · 30min" }
+  ];
+
+  // ===== STATE =====
+  var map = null;
+  var markers = {};
+  var lang = 'ko';
+  var activeCategory = 'all';
+
+  // ===== INIT MAP =====
+  function initMap() {
+    if (typeof L === 'undefined') {
+      showFallback();
+      return;
+    }
+
+    map = L.map('map', {
+      center: [43.45, 77.95],
+      zoom: 8,
+      minZoom: 6,
+      maxZoom: 14,
+      zoomControl: false,
+      scrollWheelZoom: true,
+      attributionControl: true
+    });
+
+    // Primary: Esri World Topo Map (matches the screenshot style)
+    var primary = L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+      { attribution: 'Tiles © Esri', maxZoom: 18 }
+    );
+    // Fallback: OpenStreetMap (used if Esri tiles error out)
+    var fallback = L.tileLayer(
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { attribution: '© OpenStreetMap', maxZoom: 19 }
+    );
+    primary.on('tileerror', function() {
+      if (map.hasLayer(primary)) {
+        map.removeLayer(primary);
+        fallback.addTo(map);
+      }
+    });
+    primary.addTo(map);
+
+    L.control.zoom({ position: 'topleft' }).addTo(map);
+
+    PLACES.forEach(addMarker);
+
+    // Fit to all spots with padding
+    var bounds = L.latLngBounds(PLACES.map(function(p) { return p.coords; }));
+    map.fitBounds(bounds, { padding: [80, 60], maxZoom: 9 });
+
+    // Mobile: recompute size shortly after init (URL bar / iframe quirks)
+    setTimeout(function() { map.invalidateSize(); }, 250);
+    setTimeout(function() { map.invalidateSize(); }, 800);
+    window.addEventListener('resize', function() { map.invalidateSize(); });
+    window.addEventListener('orientationchange', function() {
+      setTimeout(function() { map.invalidateSize(); }, 200);
+    });
+
+    // Hide hint after first interaction
+    map.on('zoomstart movestart click', hideHint);
+  }
+
+  // ===== Fallback list (when Leaflet fails) =====
+  function showFallback() {
+    document.getElementById('map').style.display = 'none';
+    var fb = document.getElementById('mapFallback');
+    var list = document.getElementById('fallbackList');
+    var html = '';
+    PLACES.forEach(function(p) {
+      html += '<button onclick="openSpot(\'' + p.id + '\')" ' +
+              'style="display:flex; align-items:center; gap:12px; padding:12px 14px; ' +
+              'background:white; border:1px solid var(--line); border-radius:12px; ' +
+              'text-align:left; cursor:pointer; font-family:inherit; width:100%;">' +
+                '<span style="width:14px; height:14px; border-radius:50%; ' +
+                'border:2px solid white; box-shadow:0 1px 3px rgba(0,0,0,.25); ' +
+                'background:var(--c-' + p.category + ');"></span>' +
+                '<div style="flex:1;">' +
+                  '<div style="font-weight:700; font-size:14px;">' +
+                    '<span class="ko-text">' + p.name_ko + '</span>' +
+                    '<span class="en-text">' + p.name_en + '</span>' +
+                  '</div>' +
+                  '<div style="font-size:11px; color:var(--ink-mute); margin-top:2px;">' +
+                    '<span class="ko-text">' + p.meta_ko + '</span>' +
+                    '<span class="en-text">' + p.meta_en + '</span>' +
+                  '</div>' +
+                '</div>' +
+                '<span style="color:var(--ink-mute); font-size:18px;">›</span>' +
+              '</button>';
+    });
+    list.innerHTML = html;
+    fb.style.display = 'block';
+  }
+
+  function pinHTML(p) {
+    var label = lang === 'en' ? p.name_en : p.name_ko;
+    if (p.icon) {
+      return '<div class="pin large ' + p.category + '">' + p.icon +
+             '<div class="pin-label">' + label + '</div></div>';
+    }
+    return '<div class="pin ' + p.category + '">' +
+             '<div class="pin-label">' + label + '</div>' +
+           '</div>';
+  }
+
+  function addMarker(p) {
+    var icon = L.divIcon({
+      className: 'pin-wrap',
+      html: pinHTML(p),
+      iconSize: p.icon ? [32, 32] : [22, 22],
+      iconAnchor: p.icon ? [16, 16] : [11, 11]
+    });
+    var marker = L.marker(p.coords, { icon: icon }).addTo(map);
+    marker.on('click', function() { openSpot(p.id); });
+    markers[p.id] = { marker: marker, place: p };
+  }
+
+  function refreshMarkers() {
+    Object.keys(markers).forEach(function(id) {
+      var m = markers[id];
+      var visible = activeCategory === 'all' || m.place.category === activeCategory;
+      if (!visible) {
+        if (map.hasLayer(m.marker)) map.removeLayer(m.marker);
+      } else {
+        if (!map.hasLayer(m.marker)) m.marker.addTo(map);
+        // Re-render label in current language
+        m.marker.setIcon(L.divIcon({
+          className: 'pin-wrap',
+          html: pinHTML(m.place),
+          iconSize: m.place.icon ? [32, 32] : [22, 22],
+          iconAnchor: m.place.icon ? [16, 16] : [11, 11]
+        }));
+      }
+    });
+  }
+
+  // ===== Open spot detail (navigate to ktm_almaty.html with hash) =====
+  function openSpot(id) {
+    window.location.href = 'ktm_almaty.html#' + encodeURIComponent(id);
+  }
+
+  // ===== Legend filter =====
+  function setupLegend() {
+    var items = document.querySelectorAll('.legend-item');
+    items.forEach(function(item) {
+      item.addEventListener('click', function() {
+        items.forEach(function(i) { i.classList.remove('active'); });
+        item.classList.add('active');
+        activeCategory = item.dataset.cat;
+        refreshMarkers();
+      });
+    });
+  }
+
+  // ===== Search =====
+  function setupSearch() {
+    var input = document.getElementById('searchInput');
+    var results = document.getElementById('searchResults');
+
+    input.addEventListener('input', function() {
+      var q = input.value.trim().toLowerCase();
+      if (!q) { results.classList.remove('show'); results.innerHTML = ''; return; }
+
+      var matches = PLACES.filter(function(p) {
+        return (p.name_ko + ' ' + p.name_en).toLowerCase().includes(q);
+      }).slice(0, 6);
+
+      if (matches.length === 0) {
+        results.innerHTML = '<div class="search-result-item" style="color:var(--ink-mute);">' +
+          (lang === 'en' ? 'No results' : '검색 결과 없음') + '</div>';
+        results.classList.add('show');
+        return;
+      }
+
+      var html = '';
+      matches.forEach(function(p) {
+        html += '<div class="search-result-item" onclick="openSpot(\'' + p.id + '\')">' +
+                  '<span class="search-result-dot" style="background:var(--c-' + p.category + ');"></span>' +
+                  '<div>' +
+                    '<div class="search-result-name">' + (lang === 'en' ? p.name_en : p.name_ko) + '</div>' +
+                    '<div class="search-result-meta">' + (lang === 'en' ? p.meta_en : p.meta_ko) + '</div>' +
+                  '</div>' +
+                '</div>';
+      });
+      results.innerHTML = html;
+      results.classList.add('show');
+    });
+
+    input.addEventListener('blur', function() {
+      setTimeout(function() { results.classList.remove('show'); }, 150);
+    });
+    input.addEventListener('focus', function() {
+      if (input.value.trim()) results.classList.add('show');
+    });
+  }
+
+  // ===== Lang toggle =====
+  function setLang(newLang) {
+    lang = newLang;
+    document.body.setAttribute('data-lang', newLang);
+    document.querySelectorAll('.lang-btn').forEach(function(btn) {
+      var btnLang = btn.textContent.trim().toUpperCase();
+      btn.classList.toggle('active',
+        (newLang === 'en' && btnLang === 'EN') ||
+        (newLang === 'ko' && btnLang === 'KR'));
+    });
+    var input = document.getElementById('searchInput');
+    if (input) {
+      input.placeholder = newLang === 'en'
+        ? 'Search (e.g. Charyn, Kolsai)'
+        : '명소 검색 (예: 차른, 콜사이)';
+    }
+    refreshMarkers();
+  }
+
+  // ===== My location =====
+  function goToMyLocation() {
+    if (!navigator.geolocation) {
+      alert(lang === 'en' ? 'Geolocation not supported' : '위치 정보를 사용할 수 없습니다');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      map.flyTo([pos.coords.latitude, pos.coords.longitude], 11, { duration: 1.0 });
+    }, function() {
+      alert(lang === 'en' ? 'Could not get your location' : '위치를 가져올 수 없습니다');
+    });
+  }
+
+  // ===== Hint =====
+  var hintTimer = null;
+  function hideHint() {
+    var h = document.getElementById('hintPill');
+    if (h) h.classList.add('gone');
+    if (hintTimer) clearTimeout(hintTimer);
+  }
+
+  // ===== INIT =====
+  window.addEventListener('DOMContentLoaded', function() {
+    setupLegend();
+    setupSearch();
+    hintTimer = setTimeout(hideHint, 5000);
+
+    // If Leaflet didn't load (preview proxy / blocked CDN), show fallback list.
+    if (typeof L === 'undefined') {
+      // give it a beat in case the CDN is just slow
+      setTimeout(function() {
+        if (typeof L === 'undefined') showFallback();
+        else initMap();
+      }, 1500);
+    } else {
+      initMap();
+    }
+  });
+</script>
+</body>
+</html>
