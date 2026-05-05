@@ -3336,20 +3336,31 @@ function renderTeamDetail(t){
     }).join('')}</div></div>`:''}
     ${(()=>{
       const itin = parseScheduleByDay(t);
-      if(itin && itin.some(d=>d.content)){
-        const dows=['일','월','화','수','목','금','토'];
-        return `<div class="detail-row"><div class="k">📅 일별 일정</div><div class="v">${itin.map(d=>{
-          const lines=(d.content||'').split('\n').map(s=>s.trim()).filter(Boolean);
-          const body=lines.length?lines.map(l=>`<div style="font-size:12px;line-height:1.5">• ${escapeHtml(l)}</div>`).join(''):'<div class="muted" style="font-size:11px">(내용 없음)</div>';
-          return `<div style="margin-bottom:10px;padding:8px 10px;border-left:3px solid ${t.color||'#3b82f6'};background:var(--panel)">
-            <div style="font-weight:700;font-size:13px;margin-bottom:4px">${d.date} (${d.dow}) · <span class="muted" style="font-weight:400">${d.idx}일차</span></div>
+      const monthDay = (ds)=>{ const d=new Date(ds); return `${d.getMonth()+1}월 ${d.getDate()}일`; };
+      let html = '';
+      if(itin){
+        const chimbDates = new Set(detectChimbulakDates(t));
+        html += `<div class="detail-row"><div class="k">📅 일별 일정</div><div class="v">${itin.map(d=>{
+          const lines = (d.content||'').split('\n').map(s=>s.trim()).filter(Boolean);
+          // De-duplicate consecutive identical lines
+          const dedup = [];
+          for(const l of lines){ if(!dedup.length || dedup[dedup.length-1]!==l) dedup.push(l); }
+          const body = dedup.length
+            ? dedup.slice(0,12).map(l=>`<div style="font-size:12px;line-height:1.5">• ${escapeHtml(l.slice(0,140))}${l.length>140?'…':''}</div>`).join('')
+              + (dedup.length>12?`<div class="muted" style="font-size:11px">…외 ${dedup.length-12}줄</div>`:'')
+            : '<div class="muted" style="font-size:11px">(일정표에서 인식된 내용 없음)</div>';
+          const star = chimbDates.has(d.date) ? ' <span style="color:#b45309">⭐ 침블락</span>' : '';
+          return `<div style="margin-bottom:8px;padding:8px 10px;border-left:3px solid ${t.color||'#3b82f6'};background:var(--panel);border-radius:4px">
+            <div style="font-weight:700;font-size:13px;margin-bottom:4px">${monthDay(d.date)} (${d.dow}) · <span class="muted" style="font-weight:400">${d.idx}일차</span>${star}</div>
             ${body}
           </div>`;
         }).join('')}</div></div>`;
       }
-      return (t.visitPlaces||[]).length
-        ? `<div class="detail-row"><div class="k">방문지</div><div class="v">${(t.visitPlaces||[]).map(p=>`<span class="tag">${escapeHtml(p)}</span>`).join(' ')}</div></div>`
-        : '';
+      // Always also show the flat visitPlaces list as a quick-glance summary
+      if((t.visitPlaces||[]).length){
+        html += `<div class="detail-row"><div class="k">방문지 태그</div><div class="v">${(t.visitPlaces||[]).map(p=>`<span class="tag">${escapeHtml(p)}</span>`).join(' ')}</div></div>`;
+      }
+      return html;
     })()}
     ${(t.attachments||[]).length?`<div class="detail-row"><div class="k">첨부파일</div><div class="v">${(t.attachments||[]).map(a=>`<a href="${a.dataUrl}" download="${escapeHtml(a.name)}" style="color:var(--accent);text-decoration:underline;font-size:12px;margin-right:8px">📎 ${escapeHtml(a.name)}</a>`).join('')}</div></div>`:''}
     ${t.notes?`<div class="detail-row"><div class="k">메모</div><div class="v" style="white-space:pre-wrap;font-size:12px">${escapeHtml(t.notes)}</div></div>`:''}
@@ -4060,8 +4071,6 @@ function ensureSeed(){
 // ============== ITINERARY PARSER (split imported text by day) ==============
 function parseScheduleByDay(t){
   if(!t || !t.arrivalDate || !t.departureDate) return null;
-  const text = String(t.originalText||'');
-  if(!text.trim()) return null;
   const dows = ['일','월','화','수','목','금','토'];
   const arrival = new Date(t.arrivalDate);
   const totalDays = nightsBetween(t.arrivalDate, t.departureDate) + 1;
@@ -4070,34 +4079,50 @@ function parseScheduleByDay(t){
     const d=new Date(arrival); d.setDate(d.getDate()+i);
     days.push({idx:i+1, date:localISO(d), dow:dows[d.getDay()], content:''});
   }
-  // Day-marker patterns. We try each pattern; the first match wins.
-  // Patterns capture the day index (1-based) and its content up to the next marker.
+  // Pull text from BOTH originalText and notes — older imports only have notes
+  const text = String(t.originalText||'') + (t.originalText?'\n':'') + String(t.notes||'');
+  if(!text.trim()) return days; // empty days frame
   const ord={'첫':1,'둘':2,'두':2,'셋':3,'세':3,'넷':4,'네':4,'다섯':5,'여섯':6,'일곱':7,'여덟':8,'아홉':9,'열':10};
-  // Find all day markers in the text and their positions
-  const markerRe = /(?:^|[\s,;.])((?:\d+)\s*일\s*[차째]|[첫둘두셋세넷네다섯여섯일곱여덟아홉열]\s*째\s*날|Day\s*(?:\d+)|DAY\s*(?:\d+)|\[\s*(?:\d+)\s*\])/gi;
+  const arrYear = arrival.getFullYear();
   const markers = [];
-  let m;
-  while((m = markerRe.exec(text))){
-    let idx = null;
-    const tok = m[1];
-    let nm;
-    if((nm = tok.match(/(\d+)/))){
-      idx = parseInt(nm[1]);
-    } else if((nm = tok.match(/([첫둘두셋세넷네다섯여섯일곱여덟아홉열])/))){
-      idx = ord[nm[1]];
-    }
-    if(idx && idx>=1 && idx<=totalDays){
-      markers.push({idx, start: m.index + (m[0].length - m[1].length), end: m.index + m[0].length});
-    }
+  const push = (idx, start, end) => { if(idx>=1 && idx<=totalDays) markers.push({idx, start, end}); };
+  // Pattern A: "N일차" / "N일째"
+  let m, re;
+  re=/(\d{1,2})\s*일\s*[차째]/g;
+  while((m=re.exec(text))) push(+m[1], m.index, m.index+m[0].length);
+  // Pattern B: "첫째날" / "둘째날" ...
+  re=/([첫둘두셋세넷네다섯여섯일곱여덟아홉열])\s*째\s*날/g;
+  while((m=re.exec(text))){ const i=ord[m[1]]; if(i) push(i, m.index, m.index+m[0].length); }
+  // Pattern C: "Day N" / "DAY N" / "[N]"
+  re=/(?:Day|DAY|day)\s*(\d{1,2})/g;
+  while((m=re.exec(text))) push(+m[1], m.index, m.index+m[0].length);
+  re=/\[\s*(\d{1,2})\s*\]/g;
+  while((m=re.exec(text))) push(+m[1], m.index, m.index+m[0].length);
+  // Pattern D: specific dates like "5월 18일" / "5/18" / "05-18"
+  re=/(\d{1,2})\s*[월\/\-\.]\s*(\d{1,2})\s*일?/g;
+  while((m=re.exec(text))){
+    const mo=+m[1], dy=+m[2];
+    if(mo<1||mo>12||dy<1||dy>31) continue;
+    const ds=`${arrYear}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;
+    if(ds<t.arrivalDate||ds>t.departureDate) continue;
+    const idx=nightsBetween(t.arrivalDate, ds)+1;
+    push(idx, m.index, m.index+m[0].length);
   }
-  if(!markers.length) return null;
-  // Slice text between markers
-  for(let i=0;i<markers.length;i++){
-    const cur = markers[i];
-    const next = markers[i+1];
+  if(!markers.length) return days; // frame only, no parsed content
+  markers.sort((a,b)=>a.start-b.start);
+  // Dedupe markers that overlap or are too close (e.g. "2일차 (5/19)" matches twice)
+  const cleaned = [];
+  for(const mk of markers){
+    const last = cleaned[cleaned.length-1];
+    if(last && mk.start - last.end < 8 && last.idx === mk.idx) continue;
+    if(last && mk.start - last.end < 8) { cleaned[cleaned.length-1] = mk; continue; }
+    cleaned.push(mk);
+  }
+  for(let i=0;i<cleaned.length;i++){
+    const cur=cleaned[i], next=cleaned[i+1];
     const chunk = text.slice(cur.end, next ? next.start : text.length).trim();
-    if(cur.idx >= 1 && cur.idx <= totalDays){
-      const slot = days[cur.idx-1];
+    const slot = days[cur.idx-1];
+    if(slot){
       slot.content = (slot.content ? slot.content+'\n' : '') + chunk;
     }
   }
