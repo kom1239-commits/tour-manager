@@ -83,8 +83,9 @@ tr:hover{background:rgba(56,189,248,.05)}
 .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap}
 
 /* Calendar */
-.cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.cal-head .row{flex-wrap:wrap;gap:6px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .cal-dow{background:var(--panel2);padding:8px;text-align:center;font-size:11px;color:var(--muted);font-weight:600}
 .cal-day{background:var(--panel);min-height:110px;padding:6px;position:relative;cursor:pointer}
 .cal-day:hover{background:var(--panel2)}
@@ -186,10 +187,17 @@ tr:hover{background:rgba(56,189,248,.05)}
 .alert-blue{background:#3b82f622;border:1px solid #3b82f6;color:#1e40af}
 
 @media(max-width:780px){
+  body{overflow-x:hidden}
   .grid2,.grid3,.grid4{grid-template-columns:1fr}
-  main{padding:12px}
-  .cal-day{min-height:70px;padding:3px}
-  .cal-evt{font-size:10px;padding:1px 3px}
+  main{padding:12px;max-width:100vw}
+  .cal-day{min-height:60px;padding:2px;font-size:10px}
+  .cal-num{font-size:10px;margin-bottom:2px}
+  .cal-evt{font-size:9px;padding:1px 2px;margin-bottom:1px}
+  .cal-dow{padding:4px 0;font-size:10px}
+  #calTitle,#hotelCalTitle,#chimbulakTitle{min-width:auto !important;font-size:14px}
+  .cal-head .row button,.cal-head .row select{padding:6px 8px;font-size:12px}
+  .detail-row .k{width:70px;font-size:11px}
+  .detail-row .v{font-size:12px;word-break:break-word}
   header h1 small{display:none}
   header h1{font-size:22px}
   .tab{padding:12px 12px;font-size:13px}
