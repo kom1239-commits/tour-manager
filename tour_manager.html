@@ -1615,8 +1615,11 @@ async function handleImportFile(file){
       if(!window.mammoth) throw new Error('워드 처리 라이브러리(mammoth.js)가 로드되지 않았습니다. 인터넷 연결을 확인하고 페이지를 새로고침하세요.');
       setImportStatus('워드 문서 분석 중...',30);
       const buf = await file.arrayBuffer();
-      const result = await mammoth.extractRawText({arrayBuffer:buf});
-      text = result.value;
+      // Prefer table-aware extraction so '제1일'-style merged cells survive
+      let html = '';
+      try{ html = (await mammoth.convertToHtml({arrayBuffer:buf})).value; }catch(e){}
+      const tableText = html ? htmlScheduleToText(html) : '';
+      text = tableText || (await mammoth.extractRawText({arrayBuffer:buf})).value;
     } else if(ext==='pdf'){
       if(!window.pdfjsLib) throw new Error('PDF 처리 라이브러리(pdf.js)가 로드되지 않았습니다. 인터넷 연결을 확인하고 페이지를 새로고침하세요.');
       setImportStatus('PDF 텍스트 추출 중...',30);
@@ -4069,6 +4072,64 @@ function ensureSeed(){
 }
 
 // ============== ITINERARY PARSER (split imported text by day) ==============
+// Convert a mammoth/HTML schedule (often with day-column merged cells)
+// into a flat newline-separated text where every activity line is
+// prefixed with the day it belongs to, applying the "carry-forward
+// last seen day" rule for empty day cells.
+function htmlScheduleToText(html){
+  if(!html) return '';
+  const sandbox = document.createElement('div');
+  sandbox.innerHTML = html;
+  const elText = (el)=>{
+    const tmp = document.createElement('div');
+    tmp.innerHTML = el.innerHTML
+      .replace(/<br\s*\/?>/gi,'\n')
+      .replace(/<\/p\s*>/gi,'\n')
+      .replace(/<\/li\s*>/gi,'\n')
+      .replace(/<\/div\s*>/gi,'\n');
+    return tmp.textContent.replace(/ /g,' ').replace(/\r/g,'').replace(/\n[ \t]+/g,'\n').trim();
+  };
+  const dayRe = /제\s*(\d{1,2})\s*일|(\d{1,2})\s*일\s*[차째]|Day\s*(\d{1,2})|DAY\s*(\d{1,2})|\[\s*(\d{1,2})\s*\]|([첫둘두셋세넷네다섯여섯일곱여덟아홉열])\s*째\s*날/;
+  const ord={'첫':1,'둘':2,'두':2,'셋':3,'세':3,'넷':4,'네':4,'다섯':5,'여섯':6,'일곱':7,'여덟':8,'아홉':9,'열':10};
+  const tables = sandbox.querySelectorAll('table');
+  const out = [];
+  // Preamble (text outside tables)
+  const nonTable = Array.from(sandbox.querySelectorAll('p,h1,h2,h3,h4,h5,h6'))
+    .filter(el=>!el.closest('table'))
+    .map(elText).filter(Boolean);
+  if(nonTable.length) out.push(nonTable.join('\n'));
+  if(!tables.length) return out.join('\n').trim();
+  for(const table of tables){
+    let lastDay = '';
+    const rows = table.querySelectorAll('tr');
+    for(const row of rows){
+      const cells = Array.from(row.children).map(elText);
+      if(!cells.length || !cells.some(Boolean)) continue;
+      // Find day marker in any cell, prefer leftmost
+      let dayIdx = -1;
+      for(let i=0;i<cells.length;i++){
+        const m = cells[i].match(dayRe);
+        if(m){
+          const n = +m[1]||+m[2]||+m[3]||+m[4]||+m[5]||(m[6]?ord[m[6]]:0);
+          if(n>=1 && n<=31){ lastDay = `제${n}일`; dayIdx = i; break; }
+        }
+      }
+      // Activity text = remaining cells joined; preserve internal line breaks
+      const activity = cells.map((c,i)=>i===dayIdx?'':c).join('\n').split('\n').map(s=>s.trim()).filter(Boolean);
+      if(activity.length){
+        // Prefix EVERY activity line with the current (carried) day
+        const prefix = lastDay || '';
+        for(const line of activity){
+          out.push(prefix ? `${prefix} ${line}` : line);
+        }
+      } else if(lastDay && dayIdx>=0){
+        out.push(lastDay);
+      }
+    }
+  }
+  return out.join('\n').trim();
+}
+
 function parseScheduleByDay(t){
   if(!t || !t.arrivalDate || !t.departureDate) return null;
   const dows = ['일','월','화','수','목','금','토'];
@@ -4081,13 +4142,16 @@ function parseScheduleByDay(t){
   }
   // Pull text from BOTH originalText and notes — older imports only have notes
   const text = String(t.originalText||'') + (t.originalText?'\n':'') + String(t.notes||'');
-  if(!text.trim()) return days; // empty days frame
+  if(!text.trim()) return days;
   const ord={'첫':1,'둘':2,'두':2,'셋':3,'세':3,'넷':4,'네':4,'다섯':5,'여섯':6,'일곱':7,'여덟':8,'아홉':9,'열':10};
   const arrYear = arrival.getFullYear();
   const markers = [];
   const push = (idx, start, end) => { if(idx>=1 && idx<=totalDays) markers.push({idx, start, end}); };
-  // Pattern A: "N일차" / "N일째"
   let m, re;
+  // Pattern A1: "제N일" (Korean tour-doc convention with merged cells)
+  re=/제\s*(\d{1,2})\s*일/g;
+  while((m=re.exec(text))) push(+m[1], m.index, m.index+m[0].length);
+  // Pattern A2: "N일차" / "N일째"
   re=/(\d{1,2})\s*일\s*[차째]/g;
   while((m=re.exec(text))) push(+m[1], m.index, m.index+m[0].length);
   // Pattern B: "첫째날" / "둘째날" ...
@@ -4098,7 +4162,7 @@ function parseScheduleByDay(t){
   while((m=re.exec(text))) push(+m[1], m.index, m.index+m[0].length);
   re=/\[\s*(\d{1,2})\s*\]/g;
   while((m=re.exec(text))) push(+m[1], m.index, m.index+m[0].length);
-  // Pattern D: specific dates like "5월 18일" / "5/18" / "05-18"
+  // Pattern D: specific calendar dates "5월 18일", "5/18", "05-18"
   re=/(\d{1,2})\s*[월\/\-\.]\s*(\d{1,2})\s*일?/g;
   while((m=re.exec(text))){
     const mo=+m[1], dy=+m[2];
@@ -4108,14 +4172,14 @@ function parseScheduleByDay(t){
     const idx=nightsBetween(t.arrivalDate, ds)+1;
     push(idx, m.index, m.index+m[0].length);
   }
-  if(!markers.length) return days; // frame only, no parsed content
+  if(!markers.length) return days;
   markers.sort((a,b)=>a.start-b.start);
-  // Dedupe markers that overlap or are too close (e.g. "2일차 (5/19)" matches twice)
+  // Dedupe overlapping markers (e.g. "제2일 (5/19)" matches twice for the same day)
   const cleaned = [];
   for(const mk of markers){
     const last = cleaned[cleaned.length-1];
     if(last && mk.start - last.end < 8 && last.idx === mk.idx) continue;
-    if(last && mk.start - last.end < 8) { cleaned[cleaned.length-1] = mk; continue; }
+    if(last && mk.start - last.end < 8){ cleaned[cleaned.length-1] = mk; continue; }
     cleaned.push(mk);
   }
   for(let i=0;i<cleaned.length;i++){
