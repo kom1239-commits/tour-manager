@@ -249,6 +249,7 @@ tr:hover{background:rgba(56,189,248,.05)}
   <div class="tab" data-tab="calendar">📅 캘린더</div>
   <div class="tab" data-tab="monthly">📋 월별 일정표</div>
   <div class="tab" data-tab="hotelstatus">🏨 호텔 예약현황</div>
+  <div class="tab" data-tab="chimbulak">🏔️ 침불락</div>
   <div class="tab" data-tab="letter">✉️ 호텔 예약서</div>
   <div class="tab" data-tab="import">📥 일정표 가져오기</div>
   <div class="tab" data-tab="teams">👥 팀</div>
@@ -484,6 +485,24 @@ tr:hover{background:rgba(56,189,248,.05)}
       <button class="ghost" onclick="copyHotelStatus()">📋 텍스트 복사</button>
     </div>
     <div id="hotelStatusContent"></div>
+  </div>
+</section>
+
+<!-- CHIMBULAK -->
+<section id="sec-chimbulak" class="section">
+  <div class="card">
+    <div class="cal-head">
+      <div class="row">
+        <button class="ghost" onclick="changeChimbulakMonth(-1)">‹ 이전달</button>
+        <h2 id="chimbulakTitle" style="margin:0;text-align:center"></h2>
+        <button class="ghost" onclick="changeChimbulakMonth(1)">다음달 ›</button>
+        <button class="ghost" onclick="goChimbulakToday()">오늘</button>
+      </div>
+      <div class="muted" style="font-size:12px">팀의 방문지(📍)에 <strong>침불락</strong>·<strong>Chimbulak</strong>이 포함되면 여기에 표시됩니다.</div>
+    </div>
+    <div class="cal-grid" id="chimbulakGrid"></div>
+    <h3 style="margin-top:20px">📋 침불락 방문 팀 목록 (날짜순)</h3>
+    <div id="chimbulakList"></div>
   </div>
 </section>
 
@@ -875,6 +894,7 @@ function refreshTab(name){
   else if(name==='letter')initLetter();
   else if(name==='monthly')initMonthly();
   else if(name==='hotelstatus')initHotelStatus();
+  else if(name==='chimbulak')renderChimbulak();
   else if(name==='import')initImport();
   else if(name==='settings')initSettings();
 }
@@ -3873,6 +3893,77 @@ function ensureSeed(){
     db.guides.push({id:uid(),name:'(샘플) 김가이드',languages:['한국어','러시아어'],dailyRate:30000,currency:'KZT',contact:'',notes:''});
     saveDB();
   }
+}
+
+// ============== CHIMBULAK (Шымбулак) view ==============
+let _chimbulakCursor = (()=>{const d=new Date();d.setDate(1);return d})();
+function changeChimbulakMonth(d){_chimbulakCursor.setMonth(_chimbulakCursor.getMonth()+d);renderChimbulak()}
+function goChimbulakToday(){_chimbulakCursor=new Date();_chimbulakCursor.setDate(1);renderChimbulak()}
+function isChimbulakTeam(t){
+  return (t.visitPlaces||[]).some(p=>{
+    const s=String(p||'').replace(/\s/g,'').toLowerCase();
+    return s.includes('침불락')||s.includes('침블락')||s.includes('chimbulak')||s.includes('shymbulak');
+  });
+}
+function renderChimbulak(){
+  const yr=_chimbulakCursor.getFullYear(), mo=_chimbulakCursor.getMonth();
+  const titleEl=document.getElementById('chimbulakTitle');
+  if(titleEl) titleEl.textContent=`${yr}년 ${mo+1}월`;
+  const teams=db.teams.filter(t=>isChimbulakTeam(t)&&t.arrivalDate&&t.departureDate);
+  const first=new Date(yr,mo,1), last=new Date(yr,mo+1,0);
+  const startDow=first.getDay(), daysIn=last.getDate();
+  const todayStr=localISO(new Date());
+  const byDate={};
+  teams.forEach(t=>{
+    let d=new Date(t.arrivalDate);
+    const end=new Date(t.departureDate);
+    while(d<=end){
+      const ds=localISO(d);
+      (byDate[ds]=byDate[ds]||[]).push(t);
+      d.setDate(d.getDate()+1);
+    }
+  });
+  const cellHtml=(d,other)=>{
+    const ds=localISO(d);
+    const evs=byDate[ds]||[];
+    const isToday=ds===todayStr;
+    const evHtml=evs.slice(0,3).map(t=>{
+      const total=(t.adults||0)+(t.children||0)+(t.infants||0);
+      return `<span class="cal-evt" style="background:${t.color||'#3b82f6'}" onclick="event.stopPropagation();openTeamModal('${t.id}')" title="${escapeHtml(t.name)} · ${total}명">${escapeHtml(t.name)} ${total}명</span>`;
+    }).join('');
+    const more=evs.length>3?`<div style="font-size:10px;color:var(--muted)">+${evs.length-3}</div>`:'';
+    return `<div class="cal-day${other?' other':''}${isToday?' today':''}"><div class="cal-num">${d.getDate()}</div>${evHtml}${more}</div>`;
+  };
+  let html=['일','월','화','수','목','금','토'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  for(let i=0;i<startDow;i++) html+=cellHtml(new Date(yr,mo,1-(startDow-i)),true);
+  for(let d=1;d<=daysIn;d++) html+=cellHtml(new Date(yr,mo,d),false);
+  const cells=startDow+daysIn, remain=(7-cells%7)%7;
+  for(let i=1;i<=remain;i++) html+=cellHtml(new Date(yr,mo+1,i),true);
+  const grid=document.getElementById('chimbulakGrid');
+  if(grid) grid.innerHTML=html;
+  // Text list (sorted by arrival date)
+  const sorted=teams.slice().sort((a,b)=>(a.arrivalDate||'').localeCompare(b.arrivalDate||''));
+  const listEl=document.getElementById('chimbulakList');
+  if(!listEl) return;
+  if(!sorted.length){
+    listEl.innerHTML='<div class="empty">침불락 방문 일정이 등록된 팀이 없습니다.</div>';
+    return;
+  }
+  listEl.innerHTML=sorted.map(t=>{
+    const total=(t.adults||0)+(t.children||0)+(t.infants||0);
+    return `<div class="list-row" style="cursor:pointer;border-left:4px solid ${t.color||'#3b82f6'}" onclick="openTeamModal('${t.id}')">
+      <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
+        <div style="flex:1;min-width:0">
+          <div><strong>${escapeHtml(t.name)}</strong> ${statusBadge(t.status)}</div>
+          <div class="muted" style="font-size:12px;margin-top:4px">📅 ${t.arrivalDate} ~ ${t.departureDate} (${nightsBetween(t.arrivalDate,t.departureDate)}박)</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:16px;font-weight:700">👥 ${total}명</div>
+          <div class="muted" style="font-size:11px">성 ${t.adults||0}/아 ${t.children||0}/유 ${t.infants||0}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ============== INIT ==============
