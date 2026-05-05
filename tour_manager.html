@@ -3334,7 +3334,23 @@ function renderTeamDetail(t){
       const guests=getTeamGuestCount(t); const gc=+v.guideCount||1; const tot=guests+gc; const dual=gc>=2;
       return `<div style="margin-bottom:4px"><strong>${v.date||'-'}</strong> · 손님 ${guests} + 가이드 ${gc} = <strong>${tot}명</strong>${dual?' <span class="badge" style="background:#f59e0b22;color:#fde047">⭐ 가이드 2명</span>':''}${v.notes?` · <span class="muted">${escapeHtml(v.notes)}</span>`:''}</div>`;
     }).join('')}</div></div>`:''}
-    ${(t.visitPlaces||[]).length?`<div class="detail-row"><div class="k">방문지</div><div class="v">${(t.visitPlaces||[]).map(p=>`<span class="tag">${escapeHtml(p)}</span>`).join(' ')}</div></div>`:''}
+    ${(()=>{
+      const itin = parseScheduleByDay(t);
+      if(itin && itin.some(d=>d.content)){
+        const dows=['일','월','화','수','목','금','토'];
+        return `<div class="detail-row"><div class="k">📅 일별 일정</div><div class="v">${itin.map(d=>{
+          const lines=(d.content||'').split('\n').map(s=>s.trim()).filter(Boolean);
+          const body=lines.length?lines.map(l=>`<div style="font-size:12px;line-height:1.5">• ${escapeHtml(l)}</div>`).join(''):'<div class="muted" style="font-size:11px">(내용 없음)</div>';
+          return `<div style="margin-bottom:10px;padding:8px 10px;border-left:3px solid ${t.color||'#3b82f6'};background:var(--panel)">
+            <div style="font-weight:700;font-size:13px;margin-bottom:4px">${d.date} (${d.dow}) · <span class="muted" style="font-weight:400">${d.idx}일차</span></div>
+            ${body}
+          </div>`;
+        }).join('')}</div></div>`;
+      }
+      return (t.visitPlaces||[]).length
+        ? `<div class="detail-row"><div class="k">방문지</div><div class="v">${(t.visitPlaces||[]).map(p=>`<span class="tag">${escapeHtml(p)}</span>`).join(' ')}</div></div>`
+        : '';
+    })()}
     ${(t.attachments||[]).length?`<div class="detail-row"><div class="k">첨부파일</div><div class="v">${(t.attachments||[]).map(a=>`<a href="${a.dataUrl}" download="${escapeHtml(a.name)}" style="color:var(--accent);text-decoration:underline;font-size:12px;margin-right:8px">📎 ${escapeHtml(a.name)}</a>`).join('')}</div></div>`:''}
     ${t.notes?`<div class="detail-row"><div class="k">메모</div><div class="v" style="white-space:pre-wrap;font-size:12px">${escapeHtml(t.notes)}</div></div>`:''}
   </div>`;
@@ -4039,6 +4055,53 @@ function ensureSeed(){
     db.guides.push({id:uid(),name:'(샘플) 김가이드',languages:['한국어','러시아어'],dailyRate:30000,currency:'KZT',contact:'',notes:''});
     saveDB();
   }
+}
+
+// ============== ITINERARY PARSER (split imported text by day) ==============
+function parseScheduleByDay(t){
+  if(!t || !t.arrivalDate || !t.departureDate) return null;
+  const text = String(t.originalText||'');
+  if(!text.trim()) return null;
+  const dows = ['일','월','화','수','목','금','토'];
+  const arrival = new Date(t.arrivalDate);
+  const totalDays = nightsBetween(t.arrivalDate, t.departureDate) + 1;
+  const days = [];
+  for(let i=0;i<totalDays;i++){
+    const d=new Date(arrival); d.setDate(d.getDate()+i);
+    days.push({idx:i+1, date:localISO(d), dow:dows[d.getDay()], content:''});
+  }
+  // Day-marker patterns. We try each pattern; the first match wins.
+  // Patterns capture the day index (1-based) and its content up to the next marker.
+  const ord={'첫':1,'둘':2,'두':2,'셋':3,'세':3,'넷':4,'네':4,'다섯':5,'여섯':6,'일곱':7,'여덟':8,'아홉':9,'열':10};
+  // Find all day markers in the text and their positions
+  const markerRe = /(?:^|[\s,;.])((?:\d+)\s*일\s*[차째]|[첫둘두셋세넷네다섯여섯일곱여덟아홉열]\s*째\s*날|Day\s*(?:\d+)|DAY\s*(?:\d+)|\[\s*(?:\d+)\s*\])/gi;
+  const markers = [];
+  let m;
+  while((m = markerRe.exec(text))){
+    let idx = null;
+    const tok = m[1];
+    let nm;
+    if((nm = tok.match(/(\d+)/))){
+      idx = parseInt(nm[1]);
+    } else if((nm = tok.match(/([첫둘두셋세넷네다섯여섯일곱여덟아홉열])/))){
+      idx = ord[nm[1]];
+    }
+    if(idx && idx>=1 && idx<=totalDays){
+      markers.push({idx, start: m.index + (m[0].length - m[1].length), end: m.index + m[0].length});
+    }
+  }
+  if(!markers.length) return null;
+  // Slice text between markers
+  for(let i=0;i<markers.length;i++){
+    const cur = markers[i];
+    const next = markers[i+1];
+    const chunk = text.slice(cur.end, next ? next.start : text.length).trim();
+    if(cur.idx >= 1 && cur.idx <= totalDays){
+      const slot = days[cur.idx-1];
+      slot.content = (slot.content ? slot.content+'\n' : '') + chunk;
+    }
+  }
+  return days;
 }
 
 // ============== CHIMBULAK (Шымбулак) view ==============
