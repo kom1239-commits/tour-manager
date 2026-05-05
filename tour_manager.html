@@ -226,10 +226,11 @@ tr:hover{background:rgba(56,189,248,.05)}
       <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
       <button class="io-btn ghost" title="초기화" onclick="if(confirm('모든 데이터를 초기화합니다. 진행할까요?')){localStorage.removeItem(STORE_KEY);location.reload()}">🗑️</button>
     </div>
-    <div class="row" style="justify-content:flex-end">
+    <div class="row" style="justify-content:flex-end;flex-wrap:wrap;gap:6px">
+      <span id="rateInfo" class="muted" style="font-size:10px;text-align:right;flex-basis:100%">💱 환율 가져오는 중…</span>
       <span class="muted" style="font-size:11px">기준 통화:</span>
-      <button class="cur-btn ghost" data-cur="KZT" onclick="quickSwitchBaseCurrency('KZT')">KZT</button>
       <button class="cur-btn ghost" data-cur="USD" onclick="quickSwitchBaseCurrency('USD')">USD</button>
+      <button class="cur-btn ghost" data-cur="KZT" onclick="quickSwitchBaseCurrency('KZT')">KZT</button>
       <button class="cur-btn ghost" data-cur="KRW" onclick="quickSwitchBaseCurrency('KRW')">KRW</button>
       <button class="cur-btn ghost" data-cur="RUB" onclick="quickSwitchBaseCurrency('RUB')">RUB</button>
     </div>
@@ -787,7 +788,7 @@ function loadDB(){
       companyName:'ТОО "Kim Elena\'s Dental Centre"',
       companyAddress:'г. Алматы, ул. Толе би, 106',
       senderName:'Ли ДыкВон (Lee Deuk-won)',
-      baseCurrency:'KZT',
+      baseCurrency:'USD',
       rates:{KZT:1,USD:480,KRW:0.34,RUB:5.2}
     },
     clients:[],
@@ -3319,7 +3320,11 @@ function renderTeamDetail(t){
     <div class="detail-row"><div class="k">인원</div><div class="v">${total}명 (성인 ${t.adults} / 아동 ${t.children} / 유아 ${t.infants})</div></div>
     <div class="detail-row"><div class="k">호텔</div><div class="v">${hotelHtml}</div></div>
     <div class="detail-row"><div class="k">가이드</div><div class="v">${guideHtml}</div></div>
-    <div class="detail-row"><div class="k">견적</div><div class="v">${fmtMoney(t.quote?.amount,t.quote?.currency)}</div></div>
+    <div class="detail-row"><div class="k">견적</div><div class="v">${(()=>{
+      const orig=fmtMoney(t.quote?.amount,t.quote?.currency);
+      const base=fmtMoney(toBaseCurrency(t.quote?.amount,t.quote?.currency),db.settings.baseCurrency);
+      return (!t.quote?.amount||t.quote?.currency===db.settings.baseCurrency)?orig:`<strong>${base}</strong> <span class="muted" style="font-size:11px">(원 ${orig})</span>`;
+    })()}</div></div>
     <div class="detail-row"><div class="k">입금이력</div><div class="v">${payHtml}</div></div>
     <div class="detail-row"><div class="k">미수금 (${db.settings.baseCurrency} 환산)</div><div class="v" ${bal>0?'style="color:#dc2626;font-weight:bold"':''}>${fmtMoney(bal,db.settings.baseCurrency)}</div></div>
     <div class="detail-row"><div class="k">예상 비용</div><div class="v">${fmtMoney(cost,db.settings.baseCurrency)}</div></div>
@@ -3982,6 +3987,48 @@ function updateBaseCurrencyDisplay(){
   });
 }
 
+// ============== AUTO-FETCH TODAY'S EXCHANGE RATES (USD-based) ==============
+async function fetchTodayRates(){
+  try{
+    const cached = localStorage.getItem('tm_rates_cache_v1');
+    if(cached){
+      const c = JSON.parse(cached);
+      if(c && c.date === localISO(new Date())) return c;
+    }
+    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+    const data = await res.json();
+    if(!data || !data.rates) throw new Error('rates missing');
+    const apiKZT=+data.rates.KZT, apiKRW=+data.rates.KRW, apiRUB=+data.rates.RUB;
+    if(!apiKZT||!apiKRW||!apiRUB) throw new Error('rate value missing');
+    // App's model: rates[X] = "1 unit of X equals N KZT" (KZT-anchored)
+    // From API (USD-based): 1 USD = api[X] X  →  1 X = (1/api[X]) USD = (apiKZT/api[X]) KZT
+    const out={
+      rates:{KZT:1, USD:apiKZT, KRW:apiKZT/apiKRW, RUB:apiKZT/apiRUB},
+      date:localISO(new Date()),
+      apiUSD:{KZT:apiKZT, KRW:apiKRW, RUB:apiRUB}
+    };
+    localStorage.setItem('tm_rates_cache_v1', JSON.stringify(out));
+    return out;
+  }catch(e){
+    console.warn('환율 가져오기 실패:', e);
+    return null;
+  }
+}
+async function applyTodayRates(){
+  const r = await fetchTodayRates();
+  const el = document.getElementById('rateInfo');
+  if(!r){
+    if(el) el.innerHTML = '💱 <span class="muted">환율 자동 가져오기 실패 (수동 설정 가능)</span>';
+    return;
+  }
+  db.settings.rates = r.rates;
+  saveDB();
+  if(el){
+    el.innerHTML = `💱 1 USD = <strong>${Math.round(r.apiUSD.KZT)}</strong> KZT · <strong>${Math.round(r.apiUSD.KRW)}</strong> KRW · <strong>${r.apiUSD.RUB.toFixed(1)}</strong> RUB <span class="muted">(${r.date})</span>`;
+  }
+  try{ refreshTab(document.querySelector('.tab.active').dataset.tab); }catch(e){}
+}
+
 // ============== SEED DATA (first run only) ==============
 function ensureSeed(){
   if(db.clients.length===0 && db.hotels.length===0 && db.guides.length===0 && db.teams.length===0){
@@ -4137,6 +4184,7 @@ try{
   ensureSeed();
   updateBaseCurrencyDisplay();
   renderDashboard();
+  applyTodayRates(); // fire-and-forget; updates rates + refreshes view when done
 }catch(e){
   console.error(e);
   window.dispatchEvent(new ErrorEvent('error',{message:e.message,filename:'init',lineno:0}));
