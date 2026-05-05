@@ -3345,9 +3345,12 @@ function renderTeamDetail(t){
         const chimbDates = new Set(detectChimbulakDates(t));
         html += `<div class="detail-row"><div class="k">📅 일별 일정</div><div class="v">${itin.map(d=>{
           const lines = (d.content||'').split('\n').map(s=>s.trim()).filter(Boolean);
-          // De-duplicate consecutive identical lines
+          // Drop trip-metadata lines (단체명/인원/룸타입/포함사항 etc.) and de-duplicate
           const dedup = [];
-          for(const l of lines){ if(!dedup.length || dedup[dedup.length-1]!==l) dedup.push(l); }
+          for(const l of lines){
+            if(isMetaItineraryLine(l)) continue;
+            if(!dedup.length || dedup[dedup.length-1]!==l) dedup.push(l);
+          }
           const body = dedup.length
             ? dedup.slice(0,12).map(l=>`<div style="font-size:12px;line-height:1.5">• ${escapeHtml(l.slice(0,140))}${l.length>140?'…':''}</div>`).join('')
               + (dedup.length>12?`<div class="muted" style="font-size:11px">…외 ${dedup.length-12}줄</div>`:'')
@@ -4072,6 +4075,35 @@ function ensureSeed(){
 }
 
 // ============== ITINERARY PARSER (split imported text by day) ==============
+// Lines that are trip metadata (group name, person count, room mix, guide,
+// inclusion list etc.) — keep them out of the day-by-day display.
+function isMetaItineraryLine(line){
+  const s = String(line||'').replace(/^[•·\-*✓▷▶■●◆\s]+/,'').trim();
+  if(!s) return true;
+  if(s.length > 80) return false; // long lines almost certainly real itinerary
+  // Pure label words (key column from the header table)
+  if(/^(단체\s?명|피켓\s?명|그룹\s?명|인\s?원|성인|아동|유아|룸\s?타입|객실\s?타입|객실수|현지\s?가이드|인솔자|포함\s?사항|불포함\s?사항|특이\s?사항|비고|기타\s?사항|항공편|편명|출국일|입국일|일정|행선지|국가|지역)\s*[\/／:：]?\s*$/i.test(s)) return true;
+  if(/^(단체\s?명|피켓\s?명|그룹\s?명)\s*\/\s*(피켓\s?명|단체\s?명|그룹\s?명)?$/.test(s)) return true;
+  // Header-style "key: value" combinations on a single line
+  if(/^(단체\s?명|피켓\s?명|그룹\s?명|인\s?원|룸\s?타입|객실\s?타입|현지\s?가이드|인솔자|포함\s?사항|불포함\s?사항|항공편|편명)\s*[:：]/i.test(s)) return true;
+  // Pure person counts: "15+0", "20명", "성인 15"
+  if(/^\d+\s*\+\s*\d+\s*$/.test(s)) return true;
+  if(/^\d+\s*명\s*$/.test(s)) return true;
+  if(/^(성인|아동|유아)\s*\d+\s*(\+\s*\d+)?\s*명?\s*$/.test(s)) return true;
+  // Room mix: "6트윈 1트리블", "Twin 6 / Single 2"
+  if(/(트윈|싱글|트리플|쿼드|더블|스위트|Twin|Single|Triple|Quad|Double|Suite)/i.test(s) && /\d/.test(s) && s.length < 50) return true;
+  // Short staff/guide line: "이득원 실장", "김가이드"
+  if(/^[가-힣]{2,4}\s*(실장|대리|과장|차장|부장|대표|기사|가이드|책임|리더|인솔자)\s*$/.test(s)) return true;
+  // Inclusion list (short, comma-separated nouns starting with hotel/transport)
+  if(/^(호텔|전용차량|차량|항공권|입장료|중식|석식|조식|보험|비자|항공)\s*[,，]/.test(s) && s.length < 80) return true;
+  // Pure package title
+  if(/패키지\s*$/.test(s) && s.length < 25) return true;
+  // Single price label
+  if(/^(견적|가격|금액|총액)\s*[:：]?\s*[\d,]*\s*(원|KZT|USD|KRW|RUB)?$/.test(s)) return true;
+  return false;
+}
+
+
 // Convert a mammoth/HTML schedule (often with day-column merged cells)
 // into a flat newline-separated text where every activity line is
 // prefixed with the day it belongs to, applying the "carry-forward
