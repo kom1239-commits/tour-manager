@@ -4294,20 +4294,23 @@ function parseScheduleStructured(t){
   return out;
 }
 
-// Markdown view per the user's spec — '## 행사공통정보' + '## 제N일' headers
-// with '-' bullets. Used as a copy-friendly normalised representation.
+// Markdown view per the user's spec — '■ 행사 공통 정보' header, then
+// '■ 일자별 일정' separator, then '## 제N일' sections with '-' bullets.
+// Used as a copy-friendly normalised representation.
 function formatScheduleMarkdown(t){
   const s = parseScheduleStructured(t);
   if(!s) return '';
-  const lines = ['## 행사공통정보'];
   const c = s.common_info;
-  if(c.title)      lines.push(`- 단체명: ${c.title}`);
-  if(c.guide)      lines.push(`- 현지가이드: ${c.guide}`);
-  if(c.includes.length) lines.push(`- 포함사항: ${c.includes.join(', ')}`);
-  if(c.excludes.length) lines.push(`- 불포함: ${c.excludes.join(', ')}`);
-  if(c.hotels.length)   lines.push(`- 숙박: ${c.hotels.join(', ')}`);
-  if(c.notes.length)    lines.push(`- 비고: ${c.notes.join(', ')}`);
-  if(lines.length === 1) lines.push('- (공통 정보 인식 안 됨)');
+  const lines = [];
+  lines.push('■ 행사 공통 정보');
+  lines.push(`- 단체명: ${c.title||''}`);
+  lines.push(`- 현지가이드: ${c.guide||''}`);
+  lines.push(`- 포함사항: ${c.includes.join(', ')}`);
+  lines.push(`- 불포함사항: ${c.excludes.join(', ')}`);
+  lines.push(`- 숙박: ${c.hotels.join(', ')}`);
+  lines.push(`- 비고: ${c.notes.join(', ')}`);
+  lines.push('');
+  lines.push('■ 일자별 일정');
   for(const d of s.daily_schedule){
     lines.push('');
     lines.push(`## ${d.day_label}`);
