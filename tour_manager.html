@@ -2071,7 +2071,7 @@ function teamFormHtml(t){
     <div class="grid2">
       <div class="field"><label>팀명 *</label><input id="t_name" value="${escapeHtml(t.name)}" placeholder="예: 9월 알마티 그룹"></div>
       <div class="field"><label>의뢰인 * <span class="muted" style="font-weight:400">(직접 입력 — 새 이름이면 자동 등록)</span></label>
-        <input id="t_clientName" list="clientList" value="${escapeHtml(t.clientId?clientName(t.clientId):'')}" placeholder="예: ABC 여행사">
+        <input id="t_clientName" list="clientList" value="${(()=>{const n=t.clientId?clientName(t.clientId):''; return n==='(미정)'?'':escapeHtml(n);})()}" placeholder="예: ABC 여행사" onfocus="if(this.value==='(미정)')this.value=''">
         <datalist id="clientList">
           ${db.clients.map(c=>`<option value="${escapeHtml(c.name)}">`).join('')}
         </datalist>
@@ -3233,7 +3233,12 @@ function dayCellHtml(d,other,todayStr,filt){
   const evtHtml = events.slice(0,4).map(t=>{
     const warn = (t.conflicts||[]).filter(c=>c.ignored).length ? '<span class="warn">⚠️</span>' : '';
     const highlight = window._highlightTeamId === t.id ? 'box-shadow:0 0 0 2px #fff,0 0 12px rgba(56,189,248,0.8);animation:pulse 1.5s ease-in-out infinite;' : '';
-    return `<span class="cal-evt" style="background:${t.color||'#3b82f6'};${highlight}" data-team="${t.id}" title="${escapeHtml(t.name)} · ${escapeHtml(clientName(t.clientId))}">${escapeHtml(t.name)}${warn}</span>`;
+    // ⭐ if today is this team's Chimbulak day (manual or auto-detected from schedule text)
+    const chimbDates = (typeof detectChimbulakDates === 'function') ? new Set(detectChimbulakDates(t)) : new Set();
+    const isChimbDay = chimbDates.has(ds);
+    const star = isChimbDay ? '⭐ ' : '';
+    const ring = isChimbDay ? 'outline:2px solid #fbbf24;outline-offset:-1px;font-weight:800;' : '';
+    return `<span class="cal-evt" style="background:${t.color||'#3b82f6'};${ring}${highlight}" data-team="${t.id}" title="${escapeHtml(t.name)} · ${escapeHtml(clientName(t.clientId))}${isChimbDay?' · ⭐ 침블락 방문일':''}">${star}${escapeHtml(t.name)}${warn}</span>`;
   }).join('');
   const more = events.length>4?`<div style="font-size:10px;color:var(--muted)">+${events.length-4}</div>`:'';
   // Chimbulak markers — always shown when team has a chimbulak visit on this date (regardless of toggle)
