@@ -494,7 +494,7 @@ tr:hover{background:rgba(56,189,248,.05)}
     </div>
     <div class="cal-grid" id="chimbulakGrid"></div>
     <h3 style="margin-top:20px">📋 침불락 방문 팀 목록 (날짜순)</h3>
-    <div id="chimbulakList"></div>
+    <div id="chimbulakTabList"></div>
   </div>
 </section>
 
@@ -3986,16 +3986,60 @@ let _chimbulakCursor = (()=>{const d=new Date();d.setDate(1);return d})();
 function changeChimbulakMonth(d){_chimbulakCursor.setMonth(_chimbulakCursor.getMonth()+d);renderChimbulak()}
 function goChimbulakToday(){_chimbulakCursor=new Date();_chimbulakCursor.setDate(1);renderChimbulak()}
 function isChimbulakTeam(t){
+  if((t.chimbulakVisits||[]).some(v=>v.date)) return true;
   return (t.visitPlaces||[]).some(p=>{
     const s=String(p||'').replace(/\s/g,'').toLowerCase();
     return s.includes('침불락')||s.includes('침블락')||s.includes('chimbulak')||s.includes('shymbulak');
   });
+}
+// Detect specific Chimbulak visit date(s) — first from manually entered
+// chimbulakVisits, otherwise scan team notes/imported text for patterns like
+// "3일차 침불락", "셋째날 침불락", "5월 20일 침불락".
+function detectChimbulakDates(t){
+  const manual=(t.chimbulakVisits||[]).map(v=>v.date).filter(Boolean);
+  if(manual.length) return Array.from(new Set(manual)).sort();
+  const text=String(t.notes||'');
+  if(!text||!t.arrivalDate||!t.departureDate) return [];
+  const ord={'첫':1,'둘':2,'두':2,'셋':3,'세':3,'넷':4,'네':4,'다섯':5,'여섯':6,'일곱':7};
+  const found=new Set();
+  text.split(/\n|\r/).forEach(line=>{
+    if(!/침불락|침블락|chimbulak|shymbulak/i.test(line)) return;
+    let m;
+    if((m=line.match(/(\d+)\s*일\s*[차째]/))){
+      const n=+m[1];
+      if(n>=1&&n<=31){
+        const d=new Date(t.arrivalDate); d.setDate(d.getDate()+n-1);
+        const ds=localISO(d);
+        if(ds>=t.arrivalDate&&ds<=t.departureDate) found.add(ds);
+      }
+    }
+    if((m=line.match(/([첫둘두셋세넷네다섯여섯일곱])\s*째\s*날/))){
+      const n=ord[m[1]];
+      if(n){
+        const d=new Date(t.arrivalDate); d.setDate(d.getDate()+n-1);
+        const ds=localISO(d);
+        if(ds>=t.arrivalDate&&ds<=t.departureDate) found.add(ds);
+      }
+    }
+    if((m=line.match(/(\d{1,2})\s*[월\/\-\.]\s*(\d{1,2})/))){
+      const yr=new Date(t.arrivalDate).getFullYear();
+      const mo=+m[1], dy=+m[2];
+      if(mo>=1&&mo<=12&&dy>=1&&dy<=31){
+        const ds=`${yr}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;
+        if(ds>=t.arrivalDate&&ds<=t.departureDate) found.add(ds);
+      }
+    }
+  });
+  return Array.from(found).sort();
 }
 function renderChimbulak(){
   const yr=_chimbulakCursor.getFullYear(), mo=_chimbulakCursor.getMonth();
   const titleEl=document.getElementById('chimbulakTitle');
   if(titleEl) titleEl.textContent=`${yr}년 ${mo+1}월`;
   const teams=db.teams.filter(t=>isChimbulakTeam(t)&&t.arrivalDate&&t.departureDate);
+  // Pre-compute specific Chimbulak dates per team
+  const teamChimbDates={};
+  teams.forEach(t=>{teamChimbDates[t.id]=new Set(detectChimbulakDates(t));});
   const first=new Date(yr,mo,1), last=new Date(yr,mo+1,0);
   const startDow=first.getDay(), daysIn=last.getDate();
   const todayStr=localISO(new Date());
@@ -4015,7 +4059,11 @@ function renderChimbulak(){
     const isToday=ds===todayStr;
     const evHtml=evs.slice(0,3).map(t=>{
       const total=(t.adults||0)+(t.children||0)+(t.infants||0);
-      return `<span class="cal-evt" style="background:${t.color||'#3b82f6'}" onclick="event.stopPropagation();openTeamModal('${t.id}')" title="${escapeHtml(t.name)} · ${total}명">${escapeHtml(t.name)} ${total}명</span>`;
+      const isChimbDate=teamChimbDates[t.id]&&teamChimbDates[t.id].has(ds);
+      const star=isChimbDate?'⭐ ':'';
+      const ring=isChimbDate?';outline:2px solid #fbbf24;outline-offset:-1px;font-weight:800':';opacity:.7';
+      const tip=isChimbDate?` · ⭐ 침불락 방문일`:'';
+      return `<span class="cal-evt" style="background:${t.color||'#3b82f6'}${ring}" onclick="event.stopPropagation();openTeamModal('${t.id}')" title="${escapeHtml(t.name)} · ${total}명${tip}">${star}${escapeHtml(t.name)} ${total}명</span>`;
     }).join('');
     const more=evs.length>3?`<div style="font-size:10px;color:var(--muted)">+${evs.length-3}</div>`:'';
     return `<div class="cal-day${other?' other':''}${isToday?' today':''}"><div class="cal-num">${d.getDate()}</div>${evHtml}${more}</div>`;
@@ -4029,7 +4077,7 @@ function renderChimbulak(){
   if(grid) grid.innerHTML=html;
   // Text list (sorted by arrival date)
   const sorted=teams.slice().sort((a,b)=>(a.arrivalDate||'').localeCompare(b.arrivalDate||''));
-  const listEl=document.getElementById('chimbulakList');
+  const listEl=document.getElementById('chimbulakTabList');
   if(!listEl) return;
   if(!sorted.length){
     listEl.innerHTML='<div class="empty">침불락 방문 일정이 등록된 팀이 없습니다.</div>';
@@ -4037,11 +4085,17 @@ function renderChimbulak(){
   }
   listEl.innerHTML=sorted.map(t=>{
     const total=(t.adults||0)+(t.children||0)+(t.infants||0);
+    const dates=Array.from(teamChimbDates[t.id]||[]).sort();
+    const isManual=(t.chimbulakVisits||[]).some(v=>v.date);
+    const dateLine=dates.length
+      ? `<div style="margin-top:6px;font-size:13px;font-weight:700;color:#b45309">⭐ 침불락 방문일: ${dates.map(d=>d).join(', ')} ${isManual?'<span class="muted" style="font-weight:400;font-size:11px">(수동등록)</span>':'<span class="muted" style="font-weight:400;font-size:11px">(일정표 자동인식)</span>'}</div>`
+      : `<div class="muted" style="font-size:11px;margin-top:4px">📅 정확한 방문일 미검출 — 팀 편집에서 침블락 방문일자를 등록해주세요</div>`;
     return `<div class="list-row" style="cursor:pointer;border-left:4px solid ${t.color||'#3b82f6'}" onclick="openTeamModal('${t.id}')">
       <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
         <div style="flex:1;min-width:0">
           <div><strong>${escapeHtml(t.name)}</strong> ${statusBadge(t.status)}</div>
-          <div class="muted" style="font-size:12px;margin-top:4px">📅 ${t.arrivalDate} ~ ${t.departureDate} (${nightsBetween(t.arrivalDate,t.departureDate)}박)</div>
+          <div class="muted" style="font-size:12px;margin-top:4px">🗓️ 투어기간 ${t.arrivalDate} ~ ${t.departureDate} (${nightsBetween(t.arrivalDate,t.departureDate)}박)</div>
+          ${dateLine}
         </div>
         <div style="text-align:right">
           <div style="font-size:16px;font-weight:700">👥 ${total}명</div>
