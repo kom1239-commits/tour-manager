@@ -51,6 +51,9 @@ header h1 small{color:var(--muted);font-weight:400;margin-left:8px;font-size:13p
 header .row{flex-wrap:wrap;gap:6px}
 header button{padding:8px 14px;font-size:13px;font-weight:600}
 header .cur-btn{padding:8px 12px;font-size:13px;min-width:54px;font-weight:700}
+header .io-row{margin-left:6px}
+.io-btn{padding:4px 6px;font-size:14px;line-height:1;min-width:auto;border:1px solid var(--line);background:#fff}
+.io-btn:hover{background:var(--panel2)}
 .tabs{display:flex;gap:4px;background:var(--panel);padding:0 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;position:sticky;top:65px;z-index:19}
 .tab{padding:14px 16px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;font-size:14px;font-weight:600}
 .tab:hover{color:var(--text)}
@@ -205,17 +208,18 @@ tr:hover{background:rgba(56,189,248,.05)}
 
 <header>
   <h1><span class="full-title">일정요약 앱</span></h1>
-  <div class="row">
+  <div class="row" style="margin-left:auto">
     <span class="muted" style="font-size:11px">기준 통화:</span>
     <button class="cur-btn ghost" data-cur="KZT" onclick="quickSwitchBaseCurrency('KZT')">KZT</button>
     <button class="cur-btn ghost" data-cur="USD" onclick="quickSwitchBaseCurrency('USD')">USD</button>
     <button class="cur-btn ghost" data-cur="KRW" onclick="quickSwitchBaseCurrency('KRW')">KRW</button>
     <button class="cur-btn ghost" data-cur="RUB" onclick="quickSwitchBaseCurrency('RUB')">RUB</button>
-    <span style="border-left:1px solid var(--line);height:20px;margin:0 4px"></span>
-    <button class="ghost" onclick="exportData()">📥 백업</button>
-    <button class="ghost" onclick="document.getElementById('importFile').click()">📤 복원</button>
+  </div>
+  <div class="row io-row" style="gap:4px">
+    <button class="io-btn ghost" title="백업" onclick="exportData()">📥</button>
+    <button class="io-btn ghost" title="복원" onclick="document.getElementById('importFile').click()">📤</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
-    <button class="ghost" onclick="if(confirm('모든 데이터를 초기화합니다. 진행할까요?')){localStorage.removeItem(STORE_KEY);location.reload()}">🗑️ 초기화</button>
+    <button class="io-btn ghost" title="초기화" onclick="if(confirm('모든 데이터를 초기화합니다. 진행할까요?')){localStorage.removeItem(STORE_KEY);location.reload()}">🗑️</button>
   </div>
 </header>
 
@@ -4042,9 +4046,28 @@ function renderChimbulak(){
 }
 
 // ============== INIT ==============
-ensureSeed();
-updateBaseCurrencyDisplay();
-renderDashboard();
+// Surface JS errors visibly on mobile (otherwise tapping silently does nothing)
+window.addEventListener('error', e=>{
+  let box = document.getElementById('errorBanner');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'errorBanner';
+    box.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#dc2626;color:#fff;padding:10px 14px;font-size:12px;z-index:9999;font-family:Consolas,monospace;white-space:pre-wrap;max-height:40vh;overflow:auto;box-shadow:0 4px 12px rgba(0,0,0,.4)';
+    box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div style="flex:1"><strong>⚠️ 앱 오류 — 비상 초기화 페이지로 이동하세요</strong><div id="errMsg" style="margin-top:6px"></div><a href="./reset.html" style="display:inline-block;margin-top:8px;background:#fff;color:#dc2626;padding:6px 12px;border-radius:6px;text-decoration:none;font-weight:700">🚨 reset.html 열기</a></div><button onclick="this.closest(\'#errorBanner\').remove()" style="background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer">×</button></div>';
+    document.body && document.body.appendChild(box);
+  }
+  const m = document.getElementById('errMsg');
+  if(m) m.textContent = (e.message||'')+' @ '+(e.filename||'').split('/').pop()+':'+e.lineno;
+});
+
+try{
+  ensureSeed();
+  updateBaseCurrencyDisplay();
+  renderDashboard();
+}catch(e){
+  console.error(e);
+  window.dispatchEvent(new ErrorEvent('error',{message:e.message,filename:'init',lineno:0}));
+}
 
 // ============== PWA SERVICE WORKER ==============
 if('serviceWorker' in navigator){
