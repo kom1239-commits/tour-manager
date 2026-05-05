@@ -82,6 +82,7 @@ tr:hover{background:rgba(56,189,248,.05)}
 .center{text-align:center}
 .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap}
 
+.hidden{display:none}
 /* Calendar */
 .cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
 .cal-head .row{flex-wrap:wrap;gap:6px}
@@ -1828,7 +1829,8 @@ async function buildTeamFromImportForm(opts){
     payments: [],
     quote: {amount:0, currency:db.settings.baseCurrency},
     visitPlaces: places,
-    notes: notes + (notes?'\n\n':'') + '— 일정표 자동 가져오기로 등록됨 —\n원본 텍스트 (요약):\n' + (_importedText||'').slice(0,500),
+    notes: notes,
+    originalText: (_importedText||''),
     attachments: attachment ? [attachment] : [],
     conflicts: [],
     createdAt: new Date().toISOString(),
@@ -2140,6 +2142,14 @@ function teamFormHtml(t){
       </div>
     </div>
     <div class="field"><label>메모</label><textarea id="t_notes" rows="3">${escapeHtml(t.notes||'')}</textarea></div>
+    ${t.originalText ? `
+    <div class="field">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:4px">
+        <label style="margin:0">📄 원본 일정표 (가져올 때 인식된 전체 텍스트)</label>
+        <button type="button" class="ghost" onclick="document.getElementById('t_originalText').classList.toggle('hidden');this.textContent=this.textContent.includes('숨기기')?'펼치기 ▾':'숨기기 ▴'">펼치기 ▾</button>
+      </div>
+      <textarea id="t_originalText" class="hidden" rows="14" readonly style="font-family:Consolas,monospace;font-size:12px;background:#f1f5f9">${escapeHtml(t.originalText)}</textarea>
+    </div>` : ''}
   `;
 }
 
@@ -2760,7 +2770,8 @@ function collectTeamFromForm(){
       amount: +document.getElementById('t_quoteAmount').value||0,
       currency: document.getElementById('t_quoteCur').value
     },
-    notes: document.getElementById('t_notes').value
+    notes: document.getElementById('t_notes').value,
+    originalText: _teamWorking.originalText || ''
   };
 }
 
@@ -3998,8 +4009,8 @@ function isChimbulakTeam(t){
 function detectChimbulakDates(t){
   const manual=(t.chimbulakVisits||[]).map(v=>v.date).filter(Boolean);
   if(manual.length) return Array.from(new Set(manual)).sort();
-  const text=String(t.notes||'');
-  if(!text||!t.arrivalDate||!t.departureDate) return [];
+  const text=String(t.originalText||'')+'\n'+String(t.notes||'');
+  if(!text.trim()||!t.arrivalDate||!t.departureDate) return [];
   const ord={'첫':1,'둘':2,'두':2,'셋':3,'세':3,'넷':4,'네':4,'다섯':5,'여섯':6,'일곱':7};
   const found=new Set();
   text.split(/\n|\r/).forEach(line=>{
