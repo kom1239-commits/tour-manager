@@ -779,6 +779,7 @@ function loadDB(){
       d.conflictLog = d.conflictLog||[];
       d.settings = d.settings||{};
       d.settings.rates = d.settings.rates||{KZT:1,USD:480,KRW:0.34,RUB:5.2};
+      d.settings.baseCurrency = 'USD'; // always force USD as base
       return d;
     }catch(e){console.error(e)}
   }
@@ -2074,9 +2075,9 @@ function teamFormHtml(t){
       </div>
     </div>
     <div class="grid4">
-      <div class="field"><label>성인</label><input id="t_adults" type="number" min="0" value="${t.adults||0}"></div>
-      <div class="field"><label>아동</label><input id="t_children" type="number" min="0" value="${t.children||0}"></div>
-      <div class="field"><label>유아</label><input id="t_infants" type="number" min="0" value="${t.infants||0}"></div>
+      <div class="field"><label>인원 (총)</label><input id="t_adults" type="number" min="0" value="${(t.adults||0)+(t.children||0)+(t.infants||0)}"></div>
+      <input type="hidden" id="t_children" value="0">
+      <input type="hidden" id="t_infants" value="0">
       <div class="field"><label>상태</label>
         <select id="t_status">
           ${Object.entries(STATUS_LABELS).map(([k,v])=>`<option value="${k}" ${k===t.status?'selected':''}>${v}</option>`).join('')}
@@ -3317,7 +3318,7 @@ function renderTeamDetail(t){
     ${conflictHtml}
     <div class="detail-row"><div class="k">의뢰인</div><div class="v">${escapeHtml(clientName(t.clientId))}</div></div>
     <div class="detail-row"><div class="k">기간</div><div class="v">${t.arrivalDate} ~ ${t.departureDate} (${nightsBetween(t.arrivalDate,t.departureDate)}박)</div></div>
-    <div class="detail-row"><div class="k">인원</div><div class="v">${total}명 (성인 ${t.adults} / 아동 ${t.children} / 유아 ${t.infants})</div></div>
+    <div class="detail-row"><div class="k">인원</div><div class="v">${total}명</div></div>
     <div class="detail-row"><div class="k">호텔</div><div class="v">${hotelHtml}</div></div>
     <div class="detail-row"><div class="k">가이드</div><div class="v">${guideHtml}</div></div>
     <div class="detail-row"><div class="k">견적</div><div class="v">${(()=>{
@@ -4158,7 +4159,6 @@ function renderChimbulak(){
         </div>
         <div style="text-align:right">
           <div style="font-size:16px;font-weight:700">👥 ${total}명</div>
-          <div class="muted" style="font-size:11px">성 ${t.adults||0}/아 ${t.children||0}/유 ${t.infants||0}</div>
         </div>
       </div>
     </div>`;
