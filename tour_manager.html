@@ -220,6 +220,7 @@ tr:hover{background:rgba(56,189,248,.05)}
   <h1><span class="full-title">일정요약 앱</span></h1>
   <div class="header-right">
     <div class="row io-row" style="gap:4px;justify-content:flex-end">
+      <button id="installBtn" class="io-btn ghost" title="앱으로 설치" style="display:none;background:#0284c7;color:#fff;border-color:#0284c7" onclick="installApp()">📲</button>
       <button class="io-btn ghost" title="백업" onclick="exportData()">📥</button>
       <button class="io-btn ghost" title="복원" onclick="document.getElementById('importFile').click()">📤</button>
       <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
@@ -4141,7 +4142,7 @@ try{
   window.dispatchEvent(new ErrorEvent('error',{message:e.message,filename:'init',lineno:0}));
 }
 
-// ============== PWA SERVICE WORKER ==============
+// ============== PWA SERVICE WORKER + INSTALL PROMPT ==============
 if('serviceWorker' in navigator){
   window.addEventListener('load', function(){
     try{
@@ -4150,6 +4151,31 @@ if('serviceWorker' in navigator){
       });
     }catch(e){}
   });
+}
+// Capture the install prompt and expose a button so the user can install
+// even when Chrome's auto-prompt doesn't fire.
+let _deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+  const btn = document.getElementById('installBtn');
+  if(btn) btn.style.display = '';
+});
+window.addEventListener('appinstalled', function(){
+  _deferredInstallPrompt = null;
+  const btn = document.getElementById('installBtn');
+  if(btn) btn.style.display = 'none';
+});
+async function installApp(){
+  if(_deferredInstallPrompt){
+    _deferredInstallPrompt.prompt();
+    try{ await _deferredInstallPrompt.userChoice; }catch(e){}
+    _deferredInstallPrompt = null;
+    const btn = document.getElementById('installBtn');
+    if(btn) btn.style.display = 'none';
+  } else {
+    alert('이 브라우저에서 자동 설치 프롬프트를 사용할 수 없습니다.\n\nAndroid Chrome: ⋮ → "앱 설치" 또는 "홈 화면에 추가"\niPhone Safari: 공유 → "홈 화면에 추가"');
+  }
 }
 </script>
 </body>
