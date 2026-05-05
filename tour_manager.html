@@ -240,7 +240,7 @@ tr:hover{background:rgba(56,189,248,.05)}
   <div class="tab" data-tab="calendar">📅 캘린더</div>
   <div class="tab" data-tab="monthly">📋 월별 일정표</div>
   <div class="tab" data-tab="hotelstatus">🏨 호텔 예약현황</div>
-  <div class="tab" data-tab="chimbulak">🏔️ 침불락</div>
+  <div class="tab" data-tab="chimbulak">🏔️ 침블락</div>
   <div class="tab" data-tab="letter">✉️ 호텔 예약서</div>
   <div class="tab" data-tab="import">📥 일정표 가져오기</div>
   <div class="tab" data-tab="teams">👥 팀</div>
@@ -491,10 +491,10 @@ tr:hover{background:rgba(56,189,248,.05)}
         <button class="ghost" onclick="changeChimbulakMonth(1)">다음달 ›</button>
         <button class="ghost" onclick="goChimbulakToday()">오늘</button>
       </div>
-      <div class="muted" style="font-size:12px">팀의 방문지(📍)에 <strong>침불락</strong>·<strong>Chimbulak</strong>이 포함되면 여기에 표시됩니다.</div>
+      <div class="muted" style="font-size:12px">팀의 방문지(📍)에 <strong>침블락</strong>·<strong>Chimbulak</strong>이 포함되면 여기에 표시됩니다.</div>
     </div>
     <div class="cal-grid" id="chimbulakGrid"></div>
-    <h3 style="margin-top:20px">📋 침불락 방문 팀 목록 (날짜순)</h3>
+    <h3 style="margin-top:20px">📋 침블락 방문 팀 목록 (날짜순)</h3>
     <div id="chimbulakTabList"></div>
   </div>
 </section>
@@ -608,7 +608,7 @@ tr:hover{background:rgba(56,189,248,.05)}
         </div>
         <div class="field">
           <label>방문지 (쉼표로 구분 · 자동 인식된 항목이 채워짐)</label>
-          <input id="imp_places" placeholder="알마티 동물원, 메데우, 침불락">
+          <input id="imp_places" placeholder="알마티 동물원, 메데우, 침블락">
         </div>
         <div class="field"><label>메모</label><textarea id="imp_notes" rows="2"></textarea></div>
         <div class="row" style="justify-content:flex-end;gap:8px">
@@ -1740,7 +1740,7 @@ function detectPlaces(text){
   r = /(?:посещение|экскурсия|осмотр|поездка|тур)\s+([А-Я][а-яА-Я\s]{2,30})/g;
   while((m=r.exec(text)))places.add(m[1].trim());
   // Almaty common spots (heuristic — may match Russian/Korean text)
-  const ALMATY_KEYWORDS = ['Медеу','Чимбулак','Кок-Тобе','Шымбулак','메데우','침불락','콕토베','동물원','녹색시장','독립기념탑'];
+  const ALMATY_KEYWORDS = ['Медеу','Чимбулак','Кок-Тобе','Шымбулак','메데우','침블락','침불락','콕토베','동물원','녹색시장','독립기념탑'];
   ALMATY_KEYWORDS.forEach(k=>{if(text.includes(k))places.add(k)});
   return Array.from(places).slice(0,20);
 }
@@ -2138,7 +2138,7 @@ function teamFormHtml(t){
       </div>
       <div class="field">
         <label>📍 방문지 (쉼표로 구분 — 검색 가능)</label>
-        <input id="t_visitPlaces" value="${escapeHtml((t.visitPlaces||[]).join(', '))}" placeholder="예: 메데우, 침불락, 콕토베">
+        <input id="t_visitPlaces" value="${escapeHtml((t.visitPlaces||[]).join(', '))}" placeholder="예: 메데우, 침블락, 콕토베">
       </div>
     </div>
     <div class="field"><label>메모</label><textarea id="t_notes" rows="3">${escapeHtml(t.notes||'')}</textarea></div>
@@ -4000,12 +4000,12 @@ function isChimbulakTeam(t){
   if((t.chimbulakVisits||[]).some(v=>v.date)) return true;
   return (t.visitPlaces||[]).some(p=>{
     const s=String(p||'').replace(/\s/g,'').toLowerCase();
-    return s.includes('침불락')||s.includes('침블락')||s.includes('chimbulak')||s.includes('shymbulak');
+    return s.includes('침블락')||s.includes('침불락')||s.includes('chimbulak')||s.includes('shymbulak');
   });
 }
 // Detect specific Chimbulak visit date(s) — first from manually entered
 // chimbulakVisits, otherwise scan team notes/imported text for patterns like
-// "3일차 침불락", "셋째날 침불락", "5월 20일 침불락".
+// "3일차 침블락", "셋째날 침블락", "5월 20일 침블락".
 function detectChimbulakDates(t){
   const manual=(t.chimbulakVisits||[]).map(v=>v.date).filter(Boolean);
   if(manual.length) return Array.from(new Set(manual)).sort();
@@ -4014,7 +4014,7 @@ function detectChimbulakDates(t){
   const ord={'첫':1,'둘':2,'두':2,'셋':3,'세':3,'넷':4,'네':4,'다섯':5,'여섯':6,'일곱':7};
   const found=new Set();
   text.split(/\n|\r/).forEach(line=>{
-    if(!/침불락|침블락|chimbulak|shymbulak/i.test(line)) return;
+    if(!/침블락|침불락|chimbulak|shymbulak/i.test(line)) return;
     let m;
     if((m=line.match(/(\d+)\s*일\s*[차째]/))){
       const n=+m[1];
@@ -4073,7 +4073,7 @@ function renderChimbulak(){
       const isChimbDate=teamChimbDates[t.id]&&teamChimbDates[t.id].has(ds);
       const star=isChimbDate?'⭐ ':'';
       const ring=isChimbDate?';outline:2px solid #fbbf24;outline-offset:-1px;font-weight:800':';opacity:.7';
-      const tip=isChimbDate?` · ⭐ 침불락 방문일`:'';
+      const tip=isChimbDate?` · ⭐ 침블락 방문일`:'';
       return `<span class="cal-evt" style="background:${t.color||'#3b82f6'}${ring}" onclick="event.stopPropagation();openTeamModal('${t.id}')" title="${escapeHtml(t.name)} · ${total}명${tip}">${star}${escapeHtml(t.name)} ${total}명</span>`;
     }).join('');
     const more=evs.length>3?`<div style="font-size:10px;color:var(--muted)">+${evs.length-3}</div>`:'';
@@ -4091,7 +4091,7 @@ function renderChimbulak(){
   const listEl=document.getElementById('chimbulakTabList');
   if(!listEl) return;
   if(!sorted.length){
-    listEl.innerHTML='<div class="empty">침불락 방문 일정이 등록된 팀이 없습니다.</div>';
+    listEl.innerHTML='<div class="empty">침블락 방문 일정이 등록된 팀이 없습니다.</div>';
     return;
   }
   listEl.innerHTML=sorted.map(t=>{
@@ -4099,7 +4099,7 @@ function renderChimbulak(){
     const dates=Array.from(teamChimbDates[t.id]||[]).sort();
     const isManual=(t.chimbulakVisits||[]).some(v=>v.date);
     const dateLine=dates.length
-      ? `<div style="margin-top:6px;font-size:13px;font-weight:700;color:#b45309">⭐ 침불락 방문일: ${dates.map(d=>d).join(', ')} ${isManual?'<span class="muted" style="font-weight:400;font-size:11px">(수동등록)</span>':'<span class="muted" style="font-weight:400;font-size:11px">(일정표 자동인식)</span>'}</div>`
+      ? `<div style="margin-top:6px;font-size:13px;font-weight:700;color:#b45309">⭐ 침블락 방문일: ${dates.map(d=>d).join(', ')} ${isManual?'<span class="muted" style="font-weight:400;font-size:11px">(수동등록)</span>':'<span class="muted" style="font-weight:400;font-size:11px">(일정표 자동인식)</span>'}</div>`
       : `<div class="muted" style="font-size:11px;margin-top:4px">📅 정확한 방문일 미검출 — 팀 편집에서 침블락 방문일자를 등록해주세요</div>`;
     return `<div class="list-row" style="cursor:pointer;border-left:4px solid ${t.color||'#3b82f6'}" onclick="openTeamModal('${t.id}')">
       <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
