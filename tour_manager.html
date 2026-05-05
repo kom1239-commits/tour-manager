@@ -3354,6 +3354,7 @@ function renderTeamDetail(t){
       let html = '';
       if(itin){
         const chimbDates = new Set(detectChimbulakDates(t));
+        const allEmpty = itin.every(d=>!(d.content||'').trim());
         html += `<div class="detail-row"><div class="k">📅 일별 일정</div><div class="v">${itin.map(d=>{
           const lines = (d.content||'').split('\n').map(s=>s.trim()).filter(Boolean);
           // Drop trip-metadata lines (단체명/인원/룸타입/포함사항 etc.) and de-duplicate
@@ -3363,15 +3364,17 @@ function renderTeamDetail(t){
             if(!dedup.length || dedup[dedup.length-1]!==l) dedup.push(l);
           }
           const body = dedup.length
-            ? dedup.slice(0,12).map(l=>`<div style="font-size:12px;line-height:1.5">• ${escapeHtml(l.slice(0,140))}${l.length>140?'…':''}</div>`).join('')
-              + (dedup.length>12?`<div class="muted" style="font-size:11px">…외 ${dedup.length-12}줄</div>`:'')
-            : '<div class="muted" style="font-size:11px">(일정표에서 인식된 내용 없음)</div>';
-          const star = chimbDates.has(d.date) ? ' <span style="color:#b45309">⭐ 침블락</span>' : '';
-          return `<div style="margin-bottom:8px;padding:8px 10px;border-left:3px solid ${t.color||'#3b82f6'};background:var(--panel);border-radius:4px">
-            <div style="font-weight:700;font-size:13px;margin-bottom:4px">${monthDay(d.date)} (${d.dow}) · <span class="muted" style="font-weight:400">${d.idx}일차</span>${star}</div>
+            ? dedup.slice(0,12).map(l=>`<div style="font-size:13px;line-height:1.55;padding:1px 0">• ${escapeHtml(l.slice(0,160))}${l.length>160?'…':''}</div>`).join('')
+              + (dedup.length>12?`<div class="muted" style="font-size:12px">…외 ${dedup.length-12}줄</div>`:'')
+            : '<div class="muted" style="font-size:12px">(일정표에서 인식된 내용 없음 — 새로 일정표 가져오기로 등록하면 자동 정리됩니다)</div>';
+          const star = chimbDates.has(d.date) ? ' <span style="color:#b45309;font-weight:700">⭐ 침블락</span>' : '';
+          return `<div style="margin-bottom:10px;padding:10px 12px;border-left:4px solid ${t.color||'#3b82f6'};background:var(--panel);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
+            <div style="font-weight:700;font-size:14px;margin-bottom:6px">${monthDay(d.date)} (${d.dow}) · <span class="muted" style="font-weight:400;font-size:13px">${d.idx}일차</span>${star}</div>
             ${body}
           </div>`;
-        }).join('')}</div></div>`;
+        }).join('')}
+        ${allEmpty && (t.visitPlaces||[]).length ? `<div style="margin-top:8px;padding:10px 12px;background:#fef3c7;border:1px dashed #f59e0b;border-radius:6px"><div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">📍 방문 활동 (날짜 미배정)</div>${(t.visitPlaces||[]).filter(p=>!isMetaItineraryLine(p)).map(p=>`<div style="font-size:13px;line-height:1.5">• ${escapeHtml(p)}</div>`).join('')}</div>`:''}
+        </div></div>`;
       }
       // Always also show the flat visitPlaces list as a quick-glance summary
       if((t.visitPlaces||[]).length){
@@ -4355,10 +4358,17 @@ function detectChimbulakDates(t){
           }
         }
       }
-      // Only attribute when the line really looks like a Chimbulak ACTIVITY,
-      // not a passing reference like '호텔에서 침블락 산이 보임' or a package
-      // description bullet that just contains the word.
-      const isChimbActivity = /침블락|침불락|chimbulak|shymbulak/i.test(line) && /케이블카|곤돌라|리프트|이동|탑승|올라|등반|등산|방문|관광|입장|투어|스키|보드|3200|2단|3단|메데우|тур|cable|gondola/i.test(line);
+      // Skip lines that are obvious trip-meta / inclusion-list rows: they
+      // routinely mention 침블락 with words like '입장료' as an INCLUSION,
+      // not as a real day-of activity.
+      const isMetaLine = /포함\s?사항|불포함|패키지\s*(?:내용|구성)?|상품\s?내용|단체\s?명|피켓\s?명|숙박\s*정보|비고\s*$|특이\s?사항|기타\s?사항/i.test(line);
+      // A 침블락 line counts as a real visit only if the line ALSO contains
+      // a Chimbulak-specific activity word: 케이블카/곤돌라/리프트/3단/3200/
+      // 등반/등산/스키/보드/메데우, or 'cable'/'gondola'. Generic verbs like
+      // 입장/이동/관광 are too noisy because they appear in inclusion lists.
+      const isChimbActivity = !isMetaLine
+        && /침블락|침불락|chimbulak|shymbulak/i.test(line)
+        && /케이블카|곤돌라|리프트|3200|2단|3단|등반|등산|스키|보드|메데우|cable|gondola/i.test(line);
       if(isChimbActivity && curDay >= 1){
         const d = new Date(t.arrivalDate);
         d.setDate(d.getDate()+curDay-1);
@@ -4372,7 +4382,9 @@ function detectChimbulakDates(t){
   const days = parseScheduleByDay(t);
   if(days){
     for(const d of days){
-      if(/(?:침블락|침불락|chimbulak|shymbulak)[^\n]{0,80}(?:케이블카|곤돌라|리프트|이동|탑승|올라|등반|등산|방문|관광|입장|투어|3200|2단|3단)/i.test(d.content||'')) found.add(d.date);
+      const c = d.content||'';
+      if(/포함\s?사항|불포함|상품\s?내용|패키지/.test(c)) continue;
+      if(/(?:침블락|침불락|chimbulak|shymbulak)[^\n]{0,120}(?:케이블카|곤돌라|리프트|3200|2단|3단|등반|등산|스키|보드|메데우)/i.test(c)) found.add(d.date);
     }
   }
   return Array.from(found).sort();
