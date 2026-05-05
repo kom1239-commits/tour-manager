@@ -3349,27 +3349,24 @@ function renderTeamDetail(t){
       return `<div style="margin-bottom:4px"><strong>${v.date||'-'}</strong> · 손님 ${guests} + 가이드 ${gc} = <strong>${tot}명</strong>${dual?' <span class="badge" style="background:#f59e0b22;color:#fde047">⭐ 가이드 2명</span>':''}${v.notes?` · <span class="muted">${escapeHtml(v.notes)}</span>`:''}</div>`;
     }).join('')}</div></div>`:''}
     ${(()=>{
-      const itin = parseScheduleByDay(t);
+      const struct = parseScheduleStructured(t);
       const monthDay = (ds)=>{ const d=new Date(ds); return `${d.getMonth()+1}월 ${d.getDate()}일`; };
       let html = '';
-      if(itin){
+      if(struct && struct.daily_schedule.length){
         const chimbDates = new Set(detectChimbulakDates(t));
-        const allEmpty = itin.every(d=>!(d.content||'').trim());
-        html += `<div class="detail-row"><div class="k">📅 일별 일정</div><div class="v">${itin.map(d=>{
-          const lines = (d.content||'').split('\n').map(s=>s.trim()).filter(Boolean);
-          // Drop trip-metadata lines (단체명/인원/룸타입/포함사항 etc.) and de-duplicate
-          const dedup = [];
-          for(const l of lines){
-            if(isMetaItineraryLine(l)) continue;
-            if(!dedup.length || dedup[dedup.length-1]!==l) dedup.push(l);
-          }
-          const body = dedup.length
-            ? dedup.slice(0,12).map(l=>`<div style="font-size:13px;line-height:1.55;padding:1px 0">• ${escapeHtml(l.slice(0,160))}${l.length>160?'…':''}</div>`).join('')
-              + (dedup.length>12?`<div class="muted" style="font-size:12px">…외 ${dedup.length-12}줄</div>`:'')
+        const allEmpty = struct.daily_schedule.every(d=>!d.details.length);
+        html += `<div class="detail-row"><div class="k">📅 일별 일정</div><div class="v">${struct.daily_schedule.map(d=>{
+          const body = d.details.length
+            ? d.details.slice(0,12).map(l=>`<div style="font-size:13px;line-height:1.55;padding:1px 0">• ${escapeHtml(l.slice(0,160))}${l.length>160?'…':''}</div>`).join('')
+              + (d.details.length>12?`<div class="muted" style="font-size:12px">…외 ${d.details.length-12}줄</div>`:'')
             : '<div class="muted" style="font-size:12px">(일정표에서 인식된 내용 없음 — 새로 일정표 가져오기로 등록하면 자동 정리됩니다)</div>';
           const star = chimbDates.has(d.date) ? ' <span style="color:#b45309;font-weight:700">⭐ 침블락</span>' : '';
+          const tagChips = d.point_tags.length
+            ? `<div style="margin:4px 0 6px">${d.point_tags.map(p=>`<span style="display:inline-block;background:${/침블락|침불락/.test(p)?'#fbbf24':'#bae6fd'};color:#0f172a;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;margin-right:4px">${/침블락|침불락/.test(p)?'⭐ ':'📍 '}${escapeHtml(p)}</span>`).join('')}</div>`
+            : '';
           return `<div style="margin-bottom:10px;padding:10px 12px;border-left:4px solid ${t.color||'#3b82f6'};background:var(--panel);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
-            <div style="font-weight:700;font-size:14px;margin-bottom:6px">${monthDay(d.date)} (${d.dow}) · <span class="muted" style="font-weight:400;font-size:13px">${d.idx}일차</span>${star}</div>
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px">${monthDay(d.date)} (${d.dow}) · <span class="muted" style="font-weight:400;font-size:13px">${d.day_label}</span>${star}</div>
+            ${tagChips}
             ${body}
           </div>`;
         }).join('')}
@@ -4218,6 +4215,72 @@ function parseCommonInfo(t){
   return text.slice(idx + '━━━━━ 공통정보 ━━━━━'.length)
     .split('\n').map(s=>s.trim()).filter(Boolean);
 }
+
+// Known Almaty / Kazakhstan landmarks for point_tags extraction.
+// Order matters: longer/more-specific names first so '카인디 호수' wins
+// over '카인디' alone, and '콕토베 전망대' wins over '콕토베'.
+const APP_LANDMARKS = [
+  '카인디 호수','카인디호수','카인디','콜사이 호수','콜사이호수','콜사이',
+  '차른 강','차른강','차른 캐년','차른캐년','블랙 캐년','블랙캐년',
+  '침블락','침불락','메데우','콕토베 전망대','콕토베',
+  '첸코프 성당','첸코프','젠코프','아르바트 거리','아르바트',
+  '국립공원','독립기념탑','공화국광장','파노필로프 공원','파노필로프',
+  '그린 마켓','녹색시장','중앙시장','재래시장',
+  '국제공항','부산','인천','알마티','아스타나','누르술탄'
+];
+function extractPointTags(detailLines, max=2){
+  if(!detailLines || !detailLines.length) return [];
+  const text = detailLines.join(' ');
+  const found = [];
+  const seen = new Set();
+  for(const lm of APP_LANDMARKS){
+    if(found.length >= max) break;
+    // Canonical form: collapse spaces so '카인디 호수' and '카인디호수' map together
+    const canon = lm.replace(/\s+/g,'');
+    if(seen.has(canon)) continue;
+    if(text.replace(/\s+/g,'').includes(canon)){
+      // De-duplicate variants by canonical form
+      seen.add(canon);
+      found.push(lm.replace(/\s+/g,' ').trim());
+    }
+  }
+  return found;
+}
+
+// API-style structured parse — { common_info, daily_schedule[] }
+function parseScheduleStructured(t){
+  const ci = parseCommonInfoStructured(t);
+  const days = parseScheduleByDay(t) || [];
+  const out = {
+    common_info: {
+      title: ci.단체명 || '',
+      guide: ci.현지가이드 || '',
+      includes: ci.포함사항 || [],
+      excludes: ci.불포함 || [],
+      hotels: ci.숙박 || [],
+      notes: ci.비고 || []
+    },
+    daily_schedule: []
+  };
+  for(const d of days){
+    const rawLines = (d.content||'').split('\n').map(s=>s.trim()).filter(Boolean);
+    // Drop trip-meta lines (포함사항/숙박/단체명/...) per spec
+    const details = [];
+    for(const l of rawLines){
+      if(isMetaItineraryLine(l)) continue;
+      if(!details.length || details[details.length-1] !== l) details.push(l);
+    }
+    out.daily_schedule.push({
+      day_number: d.idx,
+      day_label: `제${d.idx}일`,
+      date: d.date,
+      dow: d.dow,
+      point_tags: extractPointTags(details, 2),
+      details
+    });
+  }
+  return out;
+}
 // Bucket common-info lines into the user-defined categories
 // (단체명/현지가이드/포함사항/불포함/숙박/비고).
 function parseCommonInfoStructured(t){
@@ -4333,6 +4396,13 @@ function detectChimbulakDates(t){
   const manual=(t.chimbulakVisits||[]).map(v=>v.date).filter(Boolean);
   if(manual.length) return Array.from(new Set(manual)).sort();
   if(!t.arrivalDate||!t.departureDate) return [];
+  // Strategy 0 (most reliable): use structured parse — a day is Chimbulak
+  // if 침블락 ends up in its point_tags (which already excludes meta lines).
+  const struct = parseScheduleStructured(t);
+  if(struct && struct.daily_schedule){
+    const hits = struct.daily_schedule.filter(d => (d.point_tags||[]).some(p=>/침블락|침불락/.test(p))).map(d=>d.date);
+    if(hits.length) return Array.from(new Set(hits)).sort();
+  }
   const found = new Set();
   const arrYear = new Date(t.arrivalDate).getFullYear();
   const ord={'첫':1,'둘':2,'두':2,'셋':3,'세':3,'넷':4,'네':4,'다섯':5,'여섯':6,'일곱':7,'여덟':8,'아홉':9,'열':10};
