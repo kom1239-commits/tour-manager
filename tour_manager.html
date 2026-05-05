@@ -3355,11 +3355,16 @@ function renderTeamDetail(t){
       if(struct && struct.daily_schedule.length){
         const chimbDates = new Set(detectChimbulakDates(t));
         const allEmpty = struct.daily_schedule.every(d=>!d.details.length);
+        // When parsing fails for ALL days, show available 방문 활동 (not assigned to a specific day)
+        // distributed as a hint inside each day box.
+        const visitHints = allEmpty ? (t.visitPlaces||[]).filter(p=>p && !isMetaItineraryLine(p)) : [];
         html += `<div class="detail-row"><div class="k">📅 일별 일정</div><div class="v">${struct.daily_schedule.map(d=>{
           const body = d.details.length
             ? d.details.slice(0,12).map(l=>`<div style="font-size:13px;line-height:1.55;padding:1px 0">• ${escapeHtml(l.slice(0,160))}${l.length>160?'…':''}</div>`).join('')
               + (d.details.length>12?`<div class="muted" style="font-size:12px">…외 ${d.details.length-12}줄</div>`:'')
-            : '<div class="muted" style="font-size:12px">(일정표에서 인식된 내용 없음 — 새로 일정표 가져오기로 등록하면 자동 정리됩니다)</div>';
+            : (allEmpty
+                ? `<div class="muted" style="font-size:12px;line-height:1.5">📍 일정표 자동 인식 실패. 아래 [방문 활동 (날짜 미배정)] 박스에서 직접 확인하세요. 더 자세한 분석을 원하면 일정표 다시 가져오기로 새 팀 등록 권장.</div>`
+                : '<div class="muted" style="font-size:12px">(이 날 인식된 일정 없음)</div>');
           const star = chimbDates.has(d.date) ? ' <span style="color:#b45309;font-weight:700">⭐ 침블락</span>' : '';
           const tagChips = d.point_tags.length
             ? `<div style="margin:4px 0 6px">${d.point_tags.map(p=>`<span style="display:inline-block;background:${/침블락|침불락/.test(p)?'#fbbf24':'#bae6fd'};color:#0f172a;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;margin-right:4px">${/침블락|침불락/.test(p)?'⭐ ':'📍 '}${escapeHtml(p)}</span>`).join('')}</div>`
@@ -4446,12 +4451,18 @@ function detectChimbulakDates(t){
   const manual=(t.chimbulakVisits||[]).map(v=>v.date).filter(Boolean);
   if(manual.length) return Array.from(new Set(manual)).sort();
   if(!t.arrivalDate||!t.departureDate) return [];
-  // Strategy 0 (most reliable): use structured parse — a day is Chimbulak
+  // Strategy 0 (preferred): use structured parse — a day is Chimbulak
   // if 침블락 ends up in its point_tags (which already excludes meta lines).
+  // If structured parse produced ANY day-content at all, we ONLY trust this
+  // signal — no fallbacks — to avoid the day-1 false positive that text
+  // scanning generates from the '5/18 출발일 ... 포함사항: 침블락 입장료' header.
   const struct = parseScheduleStructured(t);
-  if(struct && struct.daily_schedule){
-    const hits = struct.daily_schedule.filter(d => (d.point_tags||[]).some(p=>/침블락|침불락/.test(p))).map(d=>d.date);
-    if(hits.length) return Array.from(new Set(hits)).sort();
+  if(struct && struct.daily_schedule.length){
+    const anyContent = struct.daily_schedule.some(d=>(d.details||[]).length>0);
+    if(anyContent){
+      const hits = struct.daily_schedule.filter(d => (d.point_tags||[]).some(p=>/침블락|침불락/.test(p))).map(d=>d.date);
+      return Array.from(new Set(hits)).sort();
+    }
   }
   const found = new Set();
   const arrYear = new Date(t.arrivalDate).getFullYear();
@@ -4462,26 +4473,29 @@ function detectChimbulakDates(t){
   const text=String(t.originalText||'')+'\n'+String(t.notes||'');
   if(text.trim()){
     let curDay = 0;
+    let inMeta = false;
+    const metaEnter = /포함\s?사항|불포함\s?사항|불포함\b|숙박\s*정보|^\s*숙박\s*$|비고\b|특이\s?사항|기타\s?사항|단체\s?명|피켓\s?명|패키지\s*(?:내용|구성)?|상품\s?(?:명|내용)/;
     text.split(/\n|\r/).forEach(line=>{
       let m;
-      if((m=line.match(/제\s*(\d{1,2})\s*일/))) { const n=+m[1]; if(n>=1&&n<=totalDays) curDay = n; }
-      else if((m=line.match(/(\d{1,2})\s*일\s*[차째]/))){ const n=+m[1]; if(n>=1&&n<=totalDays) curDay = n; }
-      else if((m=line.match(/(?:Day|DAY|day)\s*(\d{1,2})/))){ const n=+m[1]; if(n>=1&&n<=totalDays) curDay = n; }
-      else if((m=line.match(/\[\s*(\d{1,2})\s*\]/))){ const n=+m[1]; if(n>=1&&n<=totalDays) curDay = n; }
-      else if((m=line.match(/([첫둘두셋세넷네다섯여섯일곱여덟아홉열])\s*째\s*날/))){ const n=ord[m[1]]; if(n&&n<=totalDays) curDay = n; }
-      else if((m=line.match(/(\d{1,2})\s*[월\/\-\.]\s*(\d{1,2})/))){
+      let dayHit = false;
+      if((m=line.match(/제\s*(\d{1,2})\s*일/))) { const n=+m[1]; if(n>=1&&n<=totalDays){ curDay=n; dayHit=true; } }
+      else if((m=line.match(/(\d{1,2})\s*일\s*[차째]/))){ const n=+m[1]; if(n>=1&&n<=totalDays){ curDay=n; dayHit=true; } }
+      else if((m=line.match(/(?:Day|DAY|day)\s*(\d{1,2})/))){ const n=+m[1]; if(n>=1&&n<=totalDays){ curDay=n; dayHit=true; } }
+      else if((m=line.match(/\[\s*(\d{1,2})\s*\]/))){ const n=+m[1]; if(n>=1&&n<=totalDays){ curDay=n; dayHit=true; } }
+      else if((m=line.match(/([첫둘두셋세넷네다섯여섯일곱여덟아홉열])\s*째\s*날/))){ const n=ord[m[1]]; if(n&&n<=totalDays){ curDay=n; dayHit=true; } }
+      // Day marker resets meta — we are entering the day's section
+      if(dayHit){ inMeta = false; return; }
+      // Entering a meta section flips the flag; skip lines until next day marker
+      if(metaEnter.test(line)){ inMeta = true; return; }
+      if(inMeta) return;
+      if((m=line.match(/(\d{1,2})\s*[월\/\-\.]\s*(\d{1,2})/))){
         const mo=+m[1], dy=+m[2];
         if(mo>=1&&mo<=12&&dy>=1&&dy<=31){
           const ds=`${arrYear}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;
-          if(ds>=t.arrivalDate&&ds<=t.departureDate){
-            curDay = nightsBetween(t.arrivalDate, ds)+1;
-          }
+          if(ds>=t.arrivalDate&&ds<=t.departureDate){ curDay = nightsBetween(t.arrivalDate, ds)+1; }
         }
       }
-      // Skip lines that are obvious trip-meta / inclusion-list rows: they
-      // routinely mention 침블락 with words like '입장료' as an INCLUSION,
-      // not as a real day-of activity.
-      const isMetaLine = /포함\s?사항|불포함|패키지\s*(?:내용|구성)?|상품\s?내용|단체\s?명|피켓\s?명|숙박\s*정보|비고\s*$|특이\s?사항|기타\s?사항/i.test(line);
+      const isMetaLine = false; // already filtered via inMeta tracking
       // A 침블락 line counts as a real visit only if the line ALSO contains
       // a Chimbulak-specific activity word: 케이블카/곤돌라/리프트/3단/3200/
       // 등반/등산/스키/보드/메데우, or 'cable'/'gondola'. Generic verbs like
