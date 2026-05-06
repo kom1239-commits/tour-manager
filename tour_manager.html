@@ -96,6 +96,9 @@ tr:hover{background:rgba(56,189,248,.05)}
 .cal-evt{display:block;padding:1px 4px;border-radius:3px;font-size:10px;line-height:1.25;margin-bottom:1px;color:#fff;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cal-evt:hover{filter:brightness(1.2)}
 .cal-evt .warn{margin-left:4px}
+.cal-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));position:relative;background:var(--line);grid-column:1/-1;gap:1px}
+.cal-band{position:absolute;height:14px;color:#fff;font-size:10px;font-weight:600;line-height:14px;padding:0 5px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.cal-band:hover{filter:brightness(1.1)}
 
 /* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
@@ -3404,27 +3407,85 @@ function renderCalendar(){
   const startDow = first.getDay();
   const daysIn = last.getDate();
   const todayStr = localISO(new Date());
+  const MAX_LANES = 4;
+  const LANE_HEIGHT = 15;       // px per lane stripe
+  const LANE_TOP_OFFSET = 20;   // px below the day number
+  const dayClickable = filt; // pass-through (just to make sure no future linter error)
+  // Build the days array for this view (with leading/trailing other-month padding)
+  const days = [];
+  for(let i=0;i<startDow;i++) days.push({d:new Date(yr,mo,1-(startDow-i)), other:true});
+  for(let d=1;d<=daysIn;d++) days.push({d:new Date(yr,mo,d), other:false});
+  while(days.length % 7 !== 0){
+    days.push({d:new Date(yr,mo+1, days.length - startDow - daysIn + 1), other:true});
+  }
+  // Split into 7-day weeks
+  const weeks = [];
+  for(let i=0;i<days.length;i+=7) weeks.push(days.slice(i,i+7));
+  // Header row
   let html = ['일','월','화','수','목','금','토'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
-  for(let i=0;i<startDow;i++){
-    const d = new Date(yr,mo,1-(startDow-i));
-    html += dayCellHtml(d,true,todayStr,filt);
-  }
-  for(let d=1;d<=daysIn;d++){
-    html += dayCellHtml(new Date(yr,mo,d),false,todayStr,filt);
-  }
-  const totalCells = startDow + daysIn;
-  const remain = (7 - totalCells%7)%7;
-  for(let i=1;i<=remain;i++){
-    html += dayCellHtml(new Date(yr,mo+1,i),true,todayStr,filt);
+  for(const week of weeks){
+    const weekStart = localISO(week[0].d);
+    const weekEnd   = localISO(week[6].d);
+    // 1) Day cells — just the number + minHeight padding (no event chips inside)
+    let cellsHtml = '';
+    for(const cell of week){
+      const ds = localISO(cell.d);
+      const isToday = ds===todayStr;
+      cellsHtml += `<div class="cal-day ${cell.other?'other':''} ${isToday?'today':''}" data-date="${ds}" style="min-height:${LANE_TOP_OFFSET + MAX_LANES*LANE_HEIGHT + 4}px">
+        <div class="cal-num">${cell.d.getDate()}</div>
+      </div>`;
+    }
+    // 2) Event bands — one block per (team × week) — continuous, single colour
+    const teamsInWeek = db.teams.filter(t=>{
+      if(!t.arrivalDate || !t.departureDate) return false;
+      if(filt!=='all' && t.status!==filt) return false;
+      if(_calendarFilterClientId && t.clientId !== _calendarFilterClientId) return false;
+      if(_calendarFilterGuideId && !((t.guideAssignments||[]).some(g=>g.guideId===_calendarFilterGuideId))) return false;
+      if(_calendarFilterHotelId && !((t.hotelStays||[]).some(s=>s.hotelId===_calendarFilterHotelId))) return false;
+      // overlap check with this week
+      return !(t.departureDate < weekStart || t.arrivalDate > weekEnd);
+    });
+    let bandsHtml = '';
+    let overflowCount = 0;
+    for(const t of teamsInWeek){
+      const lane = (window._teamLanes||{})[t.id];
+      if(typeof lane !== 'number'){ overflowCount++; continue; }
+      if(lane >= MAX_LANES){ overflowCount++; continue; }
+      const segStart = t.arrivalDate < weekStart ? weekStart : t.arrivalDate;
+      const segEnd   = t.departureDate > weekEnd ? weekEnd : t.departureDate;
+      const startCol = nightsBetween(weekStart, segStart);  // 0..6
+      const endCol   = nightsBetween(weekStart, segEnd);    // 0..6
+      const leftPct  = (startCol/7)*100;
+      const widthPct = ((endCol - startCol + 1)/7)*100;
+      const top = LANE_TOP_OFFSET + lane*LANE_HEIGHT;
+      const radL = (t.arrivalDate >= weekStart) ? '6px' : '0';
+      const radR = (t.departureDate <= weekEnd) ? '6px' : '0';
+      // 침블락 별표 — segment 안에 침블락 가는 날짜가 있으면 그 위치에 ★ 배지
+      const chimbDates = (typeof detectChimbulakDates === 'function') ? new Set(detectChimbulakDates(t)) : new Set();
+      let starHtml = '';
+      for(const cd of chimbDates){
+        if(cd >= segStart && cd <= segEnd){
+          const col = nightsBetween(weekStart, cd);
+          const starLeft = ((col + 0.5)/7)*100;
+          starHtml += `<span style="position:absolute;left:${starLeft}%;top:0;transform:translateX(-50%);background:#fff;color:#dc2626;font-weight:900;border-radius:50%;width:12px;height:12px;line-height:12px;text-align:center;font-size:9px;box-shadow:0 0 0 1px #dc2626;pointer-events:none">★</span>`;
+        }
+      }
+      const tip = `${escapeHtml(t.name)} · ${escapeHtml(clientName(t.clientId))} · ${t.arrivalDate}~${t.departureDate}`;
+      bandsHtml += `<div class="cal-band" data-team="${t.id}" title="${tip}" style="left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px);top:${top}px;background:${t.color||'#3b82f6'};border-top-left-radius:${radL};border-bottom-left-radius:${radL};border-top-right-radius:${radR};border-bottom-right-radius:${radR}">${starHtml}${escapeHtml(t.name)}</div>`;
+    }
+    if(overflowCount > 0){
+      bandsHtml += `<div style="position:absolute;right:4px;bottom:2px;font-size:9px;color:var(--muted);font-weight:600">+${overflowCount}</div>`;
+    }
+    html += `<div class="cal-week">${cellsHtml}${bandsHtml}</div>`;
   }
   document.getElementById('calGrid').innerHTML = html;
   document.querySelectorAll('.cal-day').forEach(el=>{
     el.onclick=(e)=>{
-      if(e.target.classList.contains('cal-evt'))return;
+      if(e.target.classList.contains('cal-band'))return;
       showDayDetail(el.dataset.date);
     };
   });
-  document.querySelectorAll('.cal-evt').forEach(el=>{
+  document.querySelectorAll('.cal-band').forEach(el=>{
     el.onclick=(e)=>{e.stopPropagation();showTeamDetailFromCalendar(el.dataset.team)};
   });
 }
