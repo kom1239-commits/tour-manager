@@ -2581,11 +2581,22 @@ function getTeamGuestCount(t){
   return (+t.adults||0)+(+t.children||0)+(+t.infants||0);
 }
 
+// 한 팀의 모든 침블락 방문일 후보를 통합 반환:
+//  1. team.chimbulakVisits (수동 등록) 그대로 사용
+//  2. 비어있고 자동 감지가 있으면 가상 visit 으로 보강
+function getEffectiveChimbulakVisits(t){
+  const manual = (t && t.chimbulakVisits) ? t.chimbulakVisits.filter(v=>v && v.date) : [];
+  if(manual.length) return manual;
+  if(typeof detectChimbulakDates !== 'function') return [];
+  const auto = detectChimbulakDates(t) || [];
+  return auto.map(d => ({date:d, guideCount:1, notes:'(일정표 자동 인식)', auto:true}));
+}
+
 // Returns array of {team, visit} for given date
 function chimbulakOnDate(ds){
   const out = [];
   for(const t of db.teams){
-    for(const v of (t.chimbulakVisits||[])){
+    for(const v of getEffectiveChimbulakVisits(t)){
       if(v.date === ds) out.push({team:t, visit:v});
     }
   }
@@ -2596,17 +2607,16 @@ function renderChimbulakSummary(){
   const el = document.getElementById('chimbulakSummary');
   if(!el) return;
   if(!_chimbulakViewOn){ el.innerHTML=''; return; }
-  // gather all visits in current calendar month (or all if you prefer)
   const yr = calCursor.getFullYear(), mo = calCursor.getMonth();
   const ymPrefix = `${yr}-${String(mo+1).padStart(2,'0')}`;
   const rows = [];
   let totalGuests=0, totalGuides=0, totalPeople=0, twoGuideDays=0;
   for(const t of db.teams){
-    for(const v of (t.chimbulakVisits||[])){
+    for(const v of getEffectiveChimbulakVisits(t)){
       if(!v.date || !v.date.startsWith(ymPrefix)) continue;
       const guests = getTeamGuestCount(t);
       const gc = +v.guideCount||1;
-      rows.push({date:v.date, team:t, guests, guideCount:gc, notes:v.notes||''});
+      rows.push({date:v.date, team:t, guests, guideCount:gc, notes:v.notes||'', auto:!!v.auto});
       totalGuests += guests;
       totalGuides += gc;
       totalPeople += guests + gc;
@@ -2617,7 +2627,7 @@ function renderChimbulakSummary(){
   if(!rows.length){
     el.innerHTML = `<div class="card" style="border:2px solid #06b6d4">
       <h2 style="margin:0">🎿 ${yr}년 ${mo+1}월 침블락 방문 요약</h2>
-      <div class="empty">이 달에는 등록된 침블락 일정이 없습니다.</div>
+      <div class="empty">이 달에는 침블락 일정이 없습니다.<br><span class="muted" style="font-size:12px">팀 편집의 [+ 침블락 방문일]에서 직접 등록하거나, 일정표 가져오기로 자동 인식된 팀이 있는 달을 선택하세요.</span></div>
     </div>`;
     return;
   }
@@ -2635,8 +2645,9 @@ function renderChimbulakSummary(){
       <tbody>${rows.map(r=>{
         const total = r.guests + r.guideCount;
         const dual = r.guideCount>=2;
+        const autoBadge = r.auto ? ' <span class="tag" style="background:#fde04722;color:#a16207;font-size:10px">자동</span>' : '';
         return `<tr style="cursor:pointer" onclick="openTeamModal('${r.team.id}')">
-          <td><strong>${r.date}</strong></td>
+          <td><strong>${r.date}</strong>${autoBadge}</td>
           <td><span class="dot" style="background:${r.team.color}"></span>${escapeHtml(r.team.name)}</td>
           <td>${escapeHtml(clientName(r.team.clientId))}</td>
           <td class="right">${r.guests}</td>
