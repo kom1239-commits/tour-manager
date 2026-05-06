@@ -3429,10 +3429,7 @@ function renderTeamDetail(t){
         ${allEmpty && (t.visitPlaces||[]).length ? `<div style="margin-top:8px;padding:10px 12px;background:#fef3c7;border:1px dashed #f59e0b;border-radius:6px"><div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">📍 방문 활동 (날짜 미배정)</div>${(t.visitPlaces||[]).filter(p=>!isMetaItineraryLine(p)).map(p=>`<div style="font-size:13px;line-height:1.5">• ${escapeHtml(p)}</div>`).join('')}</div>`:''}
         </div></div>`;
       }
-      // Always also show the flat visitPlaces list as a quick-glance summary
-      if((t.visitPlaces||[]).length){
-        html += `<div class="detail-row"><div class="k">방문지 태그</div><div class="v">${(t.visitPlaces||[]).map(p=>`<span class="tag">${escapeHtml(p)}</span>`).join(' ')}</div></div>`;
-      }
+      
       // 공통정보 (행사 공통 정보) — separated, never attributed to a day
       const ci = parseCommonInfoStructured(t);
       const hasAny = ci.단체명 || ci.현지가이드 || ci.포함사항.length || ci.불포함.length || ci.숙박.length || ci.비고.length || ci.기타.length;
