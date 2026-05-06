@@ -3408,9 +3408,9 @@ function renderTeamDetail(t){
         if(dailySchedule.length){
           let chimbDates;
           try{ chimbDates = new Set(detectChimbulakDates(t)||[]); }catch(e){ chimbDates = new Set(); }
-          const allEmpty = dailySchedule.every(d=>!((d&&d.details)||[]).length);
+          const allEmpty = dailySchedule.every(d=>!normalizeDetails(d&&d.details).length);
           html += `<div class="detail-row"><div class="k">📅 일별 일정</div><div class="v">${dailySchedule.map(d=>{
-            const details = (d&&d.details)||[];
+            const details = normalizeDetails(d&&d.details);
             const point_tags = (d&&d.point_tags)||[];
             const star = chimbDates.has(d.date) ? ' <span style="color:#b45309;font-weight:700">⭐ 침블락</span>' : '';
             // Top: landmark names (방문지) — clean list
@@ -4354,47 +4354,6 @@ function extractPointTags(detailLines, max=20){
 }
 
 // API-style structured parse — { common_info, daily_schedule[] }
- function compactDayText(rawLines){
-  const priorityWords = /침블락|빅알마티|아유사이|차른|캐년|카인디|콜사이|실로암|콕토베|첸코바|판필로브|아르바트|바자르|시장|온천|트레킹|하이킹|케이블카|오프로드|공항|출발|도착/;
-
-  const lines = Array.isArray(rawLines)
-    ? rawLines
-    : String(rawLines || '').split(/\n+/);
-
-  const cleaned = lines
-    .map(x => String(x || '').trim())
-    .filter(Boolean)
-    .filter(x => !/^(조|중|석)\s*:/.test(x))
-    .filter(x => !/^HOTEL\s*:/i.test(x))
-    .filter(x => !/호텔\s*조식|호텔\s*투숙|휴식|가이드\s*미팅/.test(x))
-    .filter(x => !/^전\s*일$/.test(x));
-
-  const priority = cleaned.filter(x => priorityWords.test(x));
-  const normal = cleaned.filter(x => !priorityWords.test(x));
-
-  return [...priority, ...normal].slice(0, 6);
-}
-  function compactDayText(rawLines){
-  const priorityWords = /침블락|빅알마티|아유사이|차른|캐년|카인디|콜사이|실로암|콕토베|첸코바|젠코바|판필로브|아르바트|바자르|시장|온천|트레킹|하이킹|케이블카|오프로드|공항|출발|도착/;
-
-  const lines = Array.isArray(rawLines)
-    ? rawLines
-    : String(rawLines || '').split(/\n+/);
-
-  const cleaned = lines
-    .map(x => String(x || '').trim())
-    .filter(Boolean)
-    .filter(x => !/^(조|중|석)\s*:/.test(x))
-    .filter(x => !/^HOTEL\s*:/i.test(x))
-    .filter(x => !/호텔\s*조식|호텔\s*투숙|휴식|가이드\s*미팅/.test(x))
-    .filter(x => !/^전\s*일$/.test(x))
-    .filter(x => !/포함사항|불포함|숙박|비고|룸타입|인원|출발일|수\s*신|발신일/.test(x));
-
-  const priority = cleaned.filter(x => priorityWords.test(x));
-  const normal = cleaned.filter(x => !priorityWords.test(x));
-
-  return [...priority, ...normal].slice(0, 6);
-}
 function parseScheduleStructured(t){
   const ci = parseCommonInfoStructured(t);
   const days = parseScheduleByDay(t) || [];
@@ -4410,22 +4369,24 @@ function parseScheduleStructured(t){
     daily_schedule: []
   };
   for(const d of days){
-    const rawLines = (d.content||'').split('\n').map(s=>s.trim()).filter(Boolean);
-    // Drop trip-meta lines (포함사항/숙박/단체명/...) per spec
-    const details = [];
-    for(const l of rawLines){
-      if(isMetaItineraryLine(l)) continue;
-      if(!details.length || details[details.length-1] !== l) details.push(l);
+    // d.details may already be set by parseScheduleByDay (array). Fall back
+    // to compactDayText(d.content || d.rawContent) if not. normalizeDetails
+    // makes sure we always end up with string[].
+    let detailsArr = normalizeDetails(d.details);
+    if(!detailsArr.length){
+      const compact = compactDayText(d.rawContent || d.content || '');
+      detailsArr = normalizeDetails(compact);
     }
-    const compactDetails = compactDayText(details);
-
-out.daily_schedule.push({
-  day_number: d.idx,
-  day_label: `제${d.idx}일`,
-  date: d.date,
-  dow: d.dow,
-  details: compactDetails
-});
+    // Drop the leading "- " so the bullet doesn't become a literal in the UI
+    detailsArr = detailsArr.map(x => x.replace(/^[-•·*]\s*/, '')).filter(Boolean);
+    out.daily_schedule.push({
+      day_number: d.idx,
+      day_label: `제${d.idx}일`,
+      date: d.date,
+      dow: d.dow,
+      point_tags: extractPointTags(detailsArr, 20),
+      details: detailsArr
+    });
   }
   return out;
 }
@@ -4444,8 +4405,9 @@ function formatScheduleMarkdown(t){
     lines.push('');
     lines.push(`## ${d.day_label}`);
 
-    if(d.details && d.details.length){
-      for(const x of d.details){
+    const safeDetails = normalizeDetails(d.details);
+    if(safeDetails.length){
+      for(const x of safeDetails){
         lines.push(`- ${x}`);
       }
     } else {
@@ -4570,6 +4532,78 @@ function compactDayText(raw){
   return places.map(x => '- ' + x).join('\n');
 }
 
+// 어떤 형태(배열/문자열/객체/null)로 들어와도 안전하게 string[]로 변환
+function normalizeDetails(details){
+  if(!details) return [];
+  if(Array.isArray(details)){
+    return details.map(x => String(x || '').trim()).filter(Boolean);
+  }
+  if(typeof details === 'string'){
+    return details.split(/\n+/).map(x => x.trim()).filter(Boolean);
+  }
+  if(typeof details === 'object'){
+    if(Array.isArray(details.items)){
+      return details.items.map(x => String(x || '').trim()).filter(Boolean);
+    }
+    if(typeof details.content === 'string'){
+      return details.content.split(/\n+/).map(x => x.trim()).filter(Boolean);
+    }
+    if(typeof details.text === 'string'){
+      return details.text.split(/\n+/).map(x => x.trim()).filter(Boolean);
+    }
+    if(typeof details.schedule === 'string'){
+      return details.schedule.split(/\n+/).map(x => x.trim()).filter(Boolean);
+    }
+    return Object.values(details)
+      .flatMap(x => {
+        if(Array.isArray(x)) return x;
+        if(typeof x === 'string') return x.split(/\n+/);
+        return String(x || '');
+      })
+      .map(x => String(x || '').trim())
+      .filter(Boolean);
+  }
+  return [String(details).trim()].filter(Boolean);
+}
+
+// 옛 저장 데이터에서 details가 문자열/객체로 굳어져 있던 팀들을 자동 보정
+function repairScheduleDetailsInDB(){
+  if(!db || !Array.isArray(db.teams)) return;
+  let changed = false;
+  db.teams.forEach(team => {
+    if(!team) return;
+    const dayContainers = [
+      team.scheduleDays, team.days, team.dailySchedule, team.itineraryDays
+    ];
+    dayContainers.forEach(container => {
+      if(!Array.isArray(container)) return;
+      container.forEach(day => {
+        if(!day) return;
+        if(day.rawContent && !day.content){
+          const compact = compactDayText(day.rawContent);
+          day.content = compact;
+          day.details = normalizeDetails(compact);
+          changed = true;
+          return;
+        }
+        if(day.content && !day.details){
+          day.details = normalizeDetails(day.content);
+          changed = true;
+          return;
+        }
+        if(day.details && !Array.isArray(day.details)){
+          day.details = normalizeDetails(day.details);
+          changed = true;
+        }
+      });
+    });
+  });
+  if(changed){
+    try{ saveDB(); }catch(e){}
+    console.log('기존 일정 details 자료형 보정 완료');
+  }
+}
+
 function parseScheduleByDay(t){
   if(!t || !t.arrivalDate || !t.departureDate) return null;
   const dows = ['일','월','화','수','목','금','토'];
@@ -4642,7 +4676,9 @@ function parseScheduleByDay(t){
     const slot = days[cur.idx-1];
     if(slot){
       slot.rawContent = (slot.rawContent ? slot.rawContent+'\n' : '') + chunk;
-      slot.content = compactDayText(slot.rawContent);
+      const compact = compactDayText(slot.rawContent);
+      slot.content = compact;
+      slot.details = normalizeDetails(compact);
     }
   }
   return days;
@@ -4672,7 +4708,7 @@ function detectChimbulakDates(t){
   // scanning generates from the '5/18 출발일 ... 포함사항: 침블락 입장료' header.
   const struct = parseScheduleStructured(t);
   if(struct && struct.daily_schedule.length){
-    const anyContent = struct.daily_schedule.some(d=>(d.details||[]).length>0);
+    const anyContent = struct.daily_schedule.some(d=>normalizeDetails(d&&d.details).length>0);
     if(anyContent){
       const hits = struct.daily_schedule.filter(d => (d.point_tags||[]).some(p=>/침블락|침불락/.test(p))).map(d=>d.date);
       return Array.from(new Set(hits)).sort();
@@ -4826,6 +4862,8 @@ window.addEventListener('error', e=>{
 
 try{
   ensureSeed();
+  // 옛 저장 데이터의 details가 문자열/객체로 굳어져 있으면 배열로 보정
+  try{ repairScheduleDetailsInDB(); }catch(e){ console.warn('repair skipped:', e); }
   updateBaseCurrencyDisplay();
   renderDashboard();
   applyTodayRates(); // fire-and-forget; updates rates + refreshes view when done
