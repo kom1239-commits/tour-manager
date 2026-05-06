@@ -4761,6 +4761,37 @@ function repairScheduleDetailsInDB(){
   }
 }
 
+// 트립 기간을 완전히 벗어난 hotelStay 날짜를 트립 시작일 기준으로 자동 보정.
+// 예: 트립 5/8~5/12 인데 hotelStay 가 5/2~5/3 으로 저장돼 있으면
+// → checkIn=5/8, checkOut=5/8+(원래 박수) 로 이동 (편집된 nights 유지).
+// 트립 안과 일부라도 겹치는 hotelStay 는 의도일 수 있으므로 그대로 둠.
+function repairHotelStayDatesInDB(){
+  if(!db || !Array.isArray(db.teams)) return;
+  let changed = false;
+  db.teams.forEach(t => {
+    if(!t || !t.arrivalDate || !t.departureDate || !Array.isArray(t.hotelStays)) return;
+    const tripStart = t.arrivalDate;
+    const tripEnd   = t.departureDate;
+    t.hotelStays.forEach(s => {
+      if(!s || !s.checkIn || !s.checkOut) return;
+      const tooEarly = s.checkOut < tripStart;
+      const tooLate  = s.checkIn  > tripEnd;
+      if(tooEarly || tooLate){
+        const nights = Math.max(1, nightsBetween(s.checkIn, s.checkOut));
+        const co = new Date(tripStart);
+        co.setDate(co.getDate() + nights);
+        s.checkIn  = tripStart;
+        s.checkOut = (localISO(co) > tripEnd) ? tripEnd : localISO(co);
+        changed = true;
+      }
+    });
+  });
+  if(changed){
+    try{ saveDB(); }catch(e){}
+    console.log('호텔 숙박일 자동 보정 완료 (트립 기간 밖 → 트립 시작일 기준 정렬)');
+  }
+}
+
 function parseScheduleByDay(t){
   if(!t || !t.arrivalDate || !t.departureDate) return null;
   const dows = ['일','월','화','수','목','금','토'];
@@ -5030,6 +5061,8 @@ try{
   ensureSeed();
   // 옛 저장 데이터의 details가 문자열/객체로 굳어져 있으면 배열로 보정
   try{ repairScheduleDetailsInDB(); }catch(e){ console.warn('repair skipped:', e); }
+  // 트립 기간을 완전히 벗어난 hotelStay 날짜를 트립 시작일로 자동 정렬
+  try{ repairHotelStayDatesInDB(); }catch(e){ console.warn('hotel repair skipped:', e); }
   updateBaseCurrencyDisplay();
   renderDashboard();
   applyTodayRates(); // fire-and-forget; updates rates + refreshes view when done
