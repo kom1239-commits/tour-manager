@@ -3334,6 +3334,41 @@ function goToday(){calCursor = new Date();calCursor.setDate(1);renderCalendar();
 function renderCalendar(){
   // 새 추출/수정 결과를 반영하려면 매 렌더 시 팀-방문지 캐시 초기화
   _resetTeamPlaceDatesCache();
+  // 팀 레인 계산: 같은 팀의 chip 이 모든 trip 일자에 같은 줄에 놓이도록.
+  // 팀을 도착일 순서로 정렬한 뒤 그리디로 첫 번째로 비어있는 레인에 배치
+  // (다른 팀과 도착~출국 기간이 겹치지 않는 레인).
+  (function buildLanes(){
+    const teams = db.teams
+      .filter(t => t.arrivalDate && t.departureDate)
+      .filter(t => {
+        if(_calendarFilterClientId && t.clientId !== _calendarFilterClientId) return false;
+        if(_calendarFilterGuideId && !((t.guideAssignments||[]).some(g=>g.guideId===_calendarFilterGuideId))) return false;
+        if(_calendarFilterHotelId && !((t.hotelStays||[]).some(s=>s.hotelId===_calendarFilterHotelId))) return false;
+        return true;
+      })
+      .slice()
+      .sort((a,b)=>(a.arrivalDate||'').localeCompare(b.arrivalDate||''));
+    const lanes = []; // lanes[i] = [{a,b}, ...]
+    const assigned = {}; // team.id → lane index
+    for(const t of teams){
+      let placed = false;
+      for(let i=0;i<lanes.length;i++){
+        const overlap = lanes[i].some(p => !(t.departureDate < p.a || t.arrivalDate > p.b));
+        if(!overlap){
+          lanes[i].push({a:t.arrivalDate, b:t.departureDate});
+          assigned[t.id] = i;
+          placed = true;
+          break;
+        }
+      }
+      if(!placed){
+        lanes.push([{a:t.arrivalDate, b:t.departureDate}]);
+        assigned[t.id] = lanes.length - 1;
+      }
+    }
+    window._teamLanes = assigned;
+    window._teamLaneCount = lanes.length;
+  })();
   const yr = calCursor.getFullYear(), mo = calCursor.getMonth();
   document.getElementById('calTitle').textContent = `${yr}년 ${mo+1}월`;
   // 의뢰인 / 가이드 / 호텔 필터 배너
@@ -3398,12 +3433,19 @@ function dayCellHtml(d,other,todayStr,filt){
   const dayNum = d.getDate();
   let events = teamsOnDate(ds).filter(t=>filt==='all'||t.status===filt);
   const isToday = ds===todayStr;
-  const evtHtml = events.slice(0,4).map(t=>{
+  // 레인별 슬롯에 팀을 배치 — 같은 팀이면 항상 같은 줄에 표시
+  const MAX_LANES = 4;
+  const lanes = (window._teamLanes) || {};
+  const slots = new Array(MAX_LANES).fill(null);
+  const overflow = [];
+  for(const t of events){
+    const ln = lanes[t.id];
+    if(typeof ln === 'number' && ln < MAX_LANES) slots[ln] = t;
+    else overflow.push(t);
+  }
+  const renderChip = (t)=>{
     const warn = (t.conflicts||[]).filter(c=>c.ignored).length ? '<span class="warn">⚠️</span>' : '';
     const highlight = window._highlightTeamId === t.id ? 'box-shadow:0 0 0 2px #fff,0 0 12px rgba(56,189,248,0.8);animation:pulse 1.5s ease-in-out infinite;' : '';
-    // 침블락 가는 날: 팀 chip 색은 그대로 두고 별표만 대비 강한 색으로 덧붙임.
-    // 같은 팀의 다른 날들과 chip 색이 동일하게 유지되어 동일 팀임을 알 수 있고,
-    // 별표(★)는 흰 동그라미 + 빨간 글씨로 어떤 chip 색 위에서도 또렷하게 보임.
     const chimbDates = (typeof detectChimbulakDates === 'function') ? new Set(detectChimbulakDates(t)) : new Set();
     const isChimbDay = chimbDates.has(ds);
     const star = isChimbDay
@@ -3411,9 +3453,20 @@ function dayCellHtml(d,other,todayStr,filt){
       : '';
     const tip = `${escapeHtml(t.name)} · ${escapeHtml(clientName(t.clientId))}${isChimbDay?' · ⭐ 침블락 방문일':''}`;
     return `<span class="cal-evt" style="background:${t.color||'#3b82f6'};${highlight}" data-team="${t.id}" title="${tip}">${star}${escapeHtml(t.name)}${warn}</span>`;
-  }).join('');
-  const more = events.length>4?`<div style="font-size:10px;color:var(--muted)">+${events.length-4}</div>`:'';
-  return `<div class="cal-day ${other?'other':''} ${isToday?'today':''}" data-date="${ds}"><div class="cal-num">${dayNum}</div>${evtHtml}${more}</div>`;
+  };
+  // 어디까지 그릴지: 마지막으로 채워진 슬롯 인덱스까지만 렌더 (그 위쪽 빈 칸도
+  // placeholder 로 그려서 같은 팀이 계속 같은 줄에 머물게 함).
+  let lastUsed = -1;
+  for(let i=0;i<MAX_LANES;i++) if(slots[i]) lastUsed = i;
+  const evtHtml = [];
+  for(let i=0;i<=lastUsed;i++){
+    if(slots[i]) evtHtml.push(renderChip(slots[i]));
+    else evtHtml.push('<span class="cal-evt" style="background:transparent;visibility:hidden">.</span>');
+  }
+  const evtJoined = evtHtml.join('');
+  const overflowCount = overflow.length;
+  const more = overflowCount > 0 ? `<div style="font-size:10px;color:var(--muted)">+${overflowCount}</div>` : '';
+  return `<div class="cal-day ${other?'other':''} ${isToday?'today':''}" data-date="${ds}"><div class="cal-num">${dayNum}</div>${evtJoined}${more}</div>`;
 }
 // 팀의 trip 일자 중 실제 방문지(point_tags) 가 있는 날짜만 모은 Set 캐시
 const _teamPlaceDatesCache = new Map();
