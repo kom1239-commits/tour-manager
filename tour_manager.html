@@ -3269,6 +3269,8 @@ function changeMonth(d){calCursor.setMonth(calCursor.getMonth()+d);renderCalenda
 function goToday(){calCursor = new Date();calCursor.setDate(1);renderCalendar();renderChimbulakSummary()}
 
 function renderCalendar(){
+  // 새 추출/수정 결과를 반영하려면 매 렌더 시 팀-방문지 캐시 초기화
+  _resetTeamPlaceDatesCache();
   const yr = calCursor.getFullYear(), mo = calCursor.getMonth();
   document.getElementById('calTitle').textContent = `${yr}년 ${mo+1}월`;
   const filt = document.getElementById('calFilter').value;
@@ -3340,9 +3342,45 @@ function dayCellHtml(d,other,todayStr,filt){
   }
   return `<div class="cal-day ${other?'other':''} ${isToday?'today':''}" data-date="${ds}"><div class="cal-num">${dayNum}</div>${evtHtml}${chimbuHtml}${more}</div>`;
 }
+// 팀의 trip 일자 중 실제 방문지(point_tags) 가 있는 날짜만 모은 Set 캐시
+const _teamPlaceDatesCache = new Map();
+function _resetTeamPlaceDatesCache(){ _teamPlaceDatesCache.clear(); }
+function teamHasPlacesOnDate(t, ds){
+  if(!t || !t.id) return true;
+  let dates = _teamPlaceDatesCache.get(t.id);
+  if(!dates){
+    dates = new Set();
+    try{
+      const struct = parseScheduleStructured(t);
+      if(struct && Array.isArray(struct.daily_schedule)){
+        for(const d of struct.daily_schedule){
+          if(((d&&d.point_tags)||[]).length || normalizeDetails(d&&d.details).length){
+            dates.add(d.date);
+          }
+        }
+      }
+    }catch(e){}
+    // 인식이 한 건도 안 되면 모든 trip 날짜를 포함 (옛 동작 유지 — 데이터 못 빼면 다 표시)
+    if(!dates.size && t.arrivalDate && t.departureDate){
+      const start = new Date(t.arrivalDate);
+      const end = new Date(t.departureDate);
+      for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
+        dates.add(localISO(d));
+      }
+    }
+    _teamPlaceDatesCache.set(t.id, dates);
+  }
+  return dates.has(ds);
+}
+
 function teamsOnDate(ds){
   return db.teams.filter(t=>{
-    if(t.arrivalDate && t.departureDate) return ds>=t.arrivalDate && ds<=t.departureDate;
+    if(t.arrivalDate && t.departureDate){
+      if(ds>=t.arrivalDate && ds<=t.departureDate){
+        return teamHasPlacesOnDate(t, ds);
+      }
+      return false;
+    }
     if(t.arrivalDate) return ds===t.arrivalDate;
     return false;
   });
@@ -3432,28 +3470,37 @@ function renderTeamDetail(t){
         if(dailySchedule.length){
           let chimbDates;
           try{ chimbDates = new Set(detectChimbulakDates(t)||[]); }catch(e){ chimbDates = new Set(); }
-          const allEmpty = dailySchedule.every(d=>!normalizeDetails(d&&d.details).length);
+          const allEmpty = dailySchedule.every(d=>!normalizeDetails(d&&d.details).length && !((d&&d.point_tags)||[]).length);
           html += `<div class="detail-row"><div class="k">📅 일별 일정</div><div class="v">${dailySchedule.map(d=>{
             const details = normalizeDetails(d&&d.details);
             const point_tags = (d&&d.point_tags)||[];
+            // 방문지(point_tags)가 없으면 그 날의 카드는 아예 출력하지 않음
+            if(!point_tags.length) return '';
             const star = chimbDates.has(d.date) ? ' <span style="color:#b45309;font-weight:700">⭐ 침블락</span>' : '';
-            // Top: landmark names (방문지) — clean list
-            const placeList = point_tags.length
-              ? point_tags.map(p=>{
-                  const isChimb = /침블락|침불락/.test(p);
-                  const prefix = isChimb ? '⭐ ' : '📍 ';
-                  return `<div style="font-size:14px;line-height:1.55;padding:1px 0;${isChimb?'color:#b45309;font-weight:800':'font-weight:600'}">${prefix}${escapeHtml(p)}</div>`;
-                }).join('')
-              : '';
-            // Below: brief activity bullets (일정) — short, deduplicated, no
-            // landmark-only rows already shown above
+            const placeList = point_tags.map(p=>{
+                const isChimb = /침블락|침불락/.test(p);
+                const prefix = isChimb ? '⭐ ' : '📍 ';
+                return `<div style="font-size:14px;line-height:1.55;padding:1px 0;${isChimb?'color:#b45309;font-weight:800':'font-weight:600'}">${prefix}${escapeHtml(p)}</div>`;
+              }).join('');
+            // 활동 목록(일정) — 방문지로 이미 노출된 줄 + 항공편 코드 / 짧은 잔여 단편 제외
             const placeCanon = new Set(point_tags.map(p=>p.replace(/\s+/g,'')));
             const isJustLandmark = (line)=>{
               const c = line.replace(/\s+/g,'').replace(/^[•·\-*✓▷▶■●◆]+/,'');
               return placeCanon.has(c);
             };
+            const isActivityNoise = (line)=>{
+              const s = String(line||'').trim();
+              if(!s) return true;
+              if(/^[A-Z]{2}\s*\d{2,4}$/.test(s)) return true;     // 항공편 코드 (ZE136 등)
+              if(/^\d{1,2}:\d{2}$/.test(s)) return true;          // 시간
+              if(/^전\s*일$/.test(s) || /^전용차량$/.test(s)) return true;
+              if(/^제\s*\d+\s*일/.test(s)) return true;
+              if(s.length < 3) return true;
+              return false;
+            };
             const activityLines = details
               .filter(l=>!isJustLandmark(l))
+              .filter(l=>!isActivityNoise(l))
               .filter(l=>String(l).length<=80)
               .slice(0,6);
             const activityList = activityLines.length
@@ -3462,10 +3509,7 @@ function renderTeamDetail(t){
                   ${activityLines.map(l=>`<div style="font-size:12px;line-height:1.5;color:#475569">- ${escapeHtml(String(l).slice(0,80))}</div>`).join('')}
                 </div>`
               : '';
-            const body = (placeList + activityList) || (allEmpty
-                ? `<div class="muted" style="font-size:12px;line-height:1.5">📍 방문지 자동 인식 실패</div>`
-                : '<div class="muted" style="font-size:12px">(이 날 방문지 없음)</div>');
-            const tagChips = '';
+            const body = placeList + activityList;
             return `<div style="display:flex;gap:10px;margin-bottom:8px;padding:10px;border-left:4px solid ${t.color||'#3b82f6'};background:var(--panel);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
               <div style="flex:0 0 64px;text-align:center;border-right:1px dashed var(--line);padding-right:8px">
                 <div style="font-size:18px;font-weight:800;color:${t.color||'#3b82f6'};line-height:1.1">${d.day_number}일</div>
@@ -3474,11 +3518,10 @@ function renderTeamDetail(t){
                 ${star?`<div style="margin-top:4px">${star}</div>`:''}
               </div>
               <div style="flex:1;min-width:0">
-                ${tagChips}
                 ${body}
               </div>
             </div>`;
-          }).join('')}
+          }).filter(Boolean).join('')}
           ${allEmpty && (t.visitPlaces||[]).length ? `<div style="margin-top:8px;padding:10px 12px;background:#fef3c7;border:1px dashed #f59e0b;border-radius:6px"><div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">📍 방문 활동 (날짜 미배정)</div>${(t.visitPlaces||[]).filter(p=>!isMetaItineraryLine(p)).map(p=>`<div style="font-size:13px;line-height:1.5">• ${escapeHtml(p)}</div>`).join('')}</div>`:''}
           </div></div>`;
         }
