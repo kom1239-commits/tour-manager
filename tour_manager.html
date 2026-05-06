@@ -1343,73 +1343,78 @@ function renderHotelStatusTimeline(){
   const wrap = document.getElementById('hotelStatusContent');
   if(!data.length){wrap.innerHTML='<div class="empty">선택된 기간에 호텔 예약이 없습니다.</div>';return}
 
-  // 모바일에서도 한 달 전체(28~31일)가 한 번에 보이도록 좁은 화면일수록 칸을 작게
-  const isNarrow = (typeof window !== 'undefined' && window.innerWidth) ? (window.innerWidth < 640) : false;
-  const colWidth = isNarrow ? 9 : 24;
-  const labelWidth = isNarrow ? 70 : 160;
+  // 메인 캘린더와 동일한 7x주간 그리드 형식. 각 날짜 셀 안에
+  // 그 날 묵는 호텔별 chip 을 stack 으로 표시.
+  const todayStr = localISO(new Date());
   let html = '';
   for(const m of months){
     const monthName = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'][m];
     const daysInMonth = new Date(yr, m+1, 0).getDate();
     const monthStart = `${yr}-${String(m+1).padStart(2,'0')}-01`;
-    const monthEnd = `${yr}-${String(m+1).padStart(2,'0')}-${String(daysInMonth).padStart(2,'0')}`;
+    const monthEnd   = `${yr}-${String(m+1).padStart(2,'0')}-${String(daysInMonth).padStart(2,'0')}`;
+    // 그 달에 예약이 있는 호텔이 하나도 없으면 통째로 skip
     const hotelsInMonth = data.filter(h=>h.stays.some(s=>s.checkIn<=monthEnd && s.checkOut>=monthStart));
-    if(!hotelsInMonth.length)continue;
+    if(!hotelsInMonth.length) continue;
+
+    // 날짜별 호텔 chip 사전 (ds → [{hotelName, teamName, teamColor, teamId, ...}, ...])
+    const byDate = {};
+    for(const h of hotelsInMonth){
+      for(const s of h.stays){
+        if(!s.checkIn || !s.checkOut) continue;
+        if(s.checkOut < monthStart || s.checkIn > monthEnd) continue;
+        let d = new Date(s.checkIn < monthStart ? monthStart : s.checkIn);
+        const end = new Date(s.checkOut > monthEnd ? monthEnd : s.checkOut);
+        // checkOut 일은 보통 떠나는 날이므로 end - 1 (체크아웃 당일은 묵지 않음).
+        // 단 checkOut == checkIn (당일치기) 인 경우엔 그 날을 포함.
+        const sameDay = s.checkIn === s.checkOut;
+        const stopBefore = sameDay ? new Date(end) : (function(){ const x=new Date(end); x.setDate(x.getDate()); return x; })();
+        while(d <= stopBefore){
+          const ds = localISO(d);
+          if(ds >= monthStart && ds <= monthEnd && (sameDay || ds < s.checkOut)){
+            (byDate[ds] = byDate[ds] || []).push({
+              hotelName: h.hotelName,
+              teamName: s.teamName, teamColor: s.teamColor, teamId: s.teamId,
+              rooms: (s.rooms||[]).reduce((sum,r)=>sum+(+r.count||0),0),
+              people: s.people,
+              checkIn: s.checkIn, checkOut: s.checkOut
+            });
+          }
+          d.setDate(d.getDate()+1);
+        }
+      }
+    }
+
+    // 7-column header
+    const first = new Date(yr, m, 1);
+    const startDow = first.getDay();
+    let cells = ['일','월','화','수','목','금','토']
+      .map(d=>`<div class="cal-dow">${d}</div>`).join('');
+
+    const cellHtml = (date, other) => {
+      const ds = localISO(date);
+      const evs = byDate[ds] || [];
+      const isToday = ds === todayStr;
+      const evHtml = evs.slice(0,4).map(e=>{
+        const tip = `${e.hotelName} · ${e.teamName} · ${e.checkIn}~${e.checkOut} · ${e.rooms||0}실 ${e.people||0}명`;
+        return `<span class="cal-evt" style="background:${e.teamColor||'#3b82f6'}" onclick="event.stopPropagation();openTeamModal('${e.teamId}')" title="${escapeHtml(tip)}">${escapeHtml(e.hotelName)}</span>`;
+      }).join('');
+      const more = evs.length > 4 ? `<div style="font-size:10px;color:var(--muted)">+${evs.length-4}</div>` : '';
+      return `<div class="cal-day${other?' other':''}${isToday?' today':''}"><div class="cal-num">${date.getDate()}</div>${evHtml}${more}</div>`;
+    };
+
+    // Leading other-month cells
+    for(let i=0;i<startDow;i++) cells += cellHtml(new Date(yr,m,1-(startDow-i)), true);
+    // Current month cells
+    for(let d=1; d<=daysInMonth; d++) cells += cellHtml(new Date(yr,m,d), false);
+    // Trailing other-month cells
+    const total = startDow + daysInMonth;
+    const remain = (7 - total%7)%7;
+    for(let i=1; i<=remain; i++) cells += cellHtml(new Date(yr,m+1,i), true);
 
     html += `<div style="margin-bottom:20px">
       <h3 style="margin:0 0 8px">📅 ${yr}년 ${monthName}</h3>
-      <div style="overflow-x:auto;border:1px solid var(--line);border-radius:8px">
-        <div style="min-width:${labelWidth + daysInMonth*colWidth}px">`;
-    // Header row
-    html += `<div style="display:flex;background:var(--panel2);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1">
-      <div style="width:${labelWidth}px;padding:6px 8px;font-size:11px;color:var(--muted);font-weight:600">호텔</div>`;
-    for(let d=1; d<=daysInMonth; d++){
-      const dow = new Date(yr,m,d).getDay();
-      const dowChar = ['일','월','화','수','목','금','토'][dow];
-      const isWeekend = dow===0||dow===6;
-      const todayStr = localISO(new Date());
-      const ds = `${yr}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const isToday = ds === todayStr;
-      html += `<div style="width:${colWidth}px;text-align:center;padding:4px 0;font-size:9px;color:${isWeekend?'#fca5a5':'var(--muted)'};${isToday?'background:#0c4a6e88':''};font-weight:${isToday?'700':'600'}">
-        <div>${d}</div><div style="font-size:8px;opacity:.8">${dowChar}</div>
-      </div>`;
-    }
-    html += `</div>`;
-
-    // Hotel rows
-    for(const h of hotelsInMonth){
-      const monthStays = h.stays.filter(s=>s.checkIn<=monthEnd && s.checkOut>=monthStart);
-      html += `<div style="display:flex;border-bottom:1px solid var(--line);position:relative;min-height:42px">
-        <div style="width:${labelWidth}px;padding:6px 8px;font-size:${isNarrow?11:12}px;font-weight:600;background:var(--panel);position:sticky;left:0;border-right:1px solid var(--line);z-index:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(h.hotelName)}</div>
-        <div style="position:relative;display:flex;flex:1">`;
-      // Background grid
-      for(let d=1; d<=daysInMonth; d++){
-        const dow = new Date(yr,m,d).getDay();
-        const isWeekend = dow===0||dow===6;
-        const todayStr = localISO(new Date());
-        const ds = `${yr}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        const isToday = ds === todayStr;
-        html += `<div style="width:${colWidth}px;border-right:1px solid #2a3548;background:${isToday?'#0c4a6e44':isWeekend?'#1a2334':'transparent'}"></div>`;
-      }
-      // Bars
-      for(const s of monthStays){
-        const startDay = +s.checkIn.slice(8,10);
-        const endDay = +s.checkOut.slice(8,10);
-        const startMonth = +s.checkIn.slice(5,7)-1;
-        const endMonth = +s.checkOut.slice(5,7)-1;
-        const adjStart = startMonth < m ? 1 : startDay;
-        const adjEnd = endMonth > m ? daysInMonth : endDay;
-        const left = (adjStart-1) * colWidth;
-        const width = (adjEnd - adjStart + 1) * colWidth - 2;
-        const totalRooms = (s.rooms||[]).reduce((sum,r)=>sum+(+r.count||0),0);
-        const tooltip = `${s.teamName} · ${s.clientName} · ${s.checkIn}~${s.checkOut} (${nightsBetween(s.checkIn,s.checkOut)}박) · ${totalRooms}실 · ${s.people}명`;
-        html += `<div style="position:absolute;left:${left}px;top:6px;width:${width}px;height:30px;background:${s.teamColor};border-radius:4px;padding:5px 8px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,.3)" onclick="openTeamModal('${s.teamId}')" title="${escapeHtml(tooltip)}">
-          ${escapeHtml(s.teamName)} <span style="opacity:.85;font-weight:400">${totalRooms}실 ${s.people}명</span>
-        </div>`;
-      }
-      html += `</div></div>`;
-    }
-    html += `</div></div></div>`;
+      <div class="cal-grid">${cells}</div>
+    </div>`;
   }
   wrap.innerHTML = html;
 }
