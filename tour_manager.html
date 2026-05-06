@@ -3294,7 +3294,7 @@ function dayCellHtml(d,other,todayStr,filt){
     const chimbDates = (typeof detectChimbulakDates === 'function') ? new Set(detectChimbulakDates(t)) : new Set();
     const isChimbDay = chimbDates.has(ds);
     const star = isChimbDay ? '⭐ ' : '';
-    const ring = isChimbDay ? 'outline:2px solid #fbbf24;outline-offset:-1px;font-weight:800;' : '';
+    const ring = isChimbDay ? 'outline:3px solid #fbbf24;outline-offset:-1px;font-weight:800;background:#fbbf24!important;color:#7c2d12!important;' : '';
     return `<span class="cal-evt" style="background:${t.color||'#3b82f6'};${ring}${highlight}" data-team="${t.id}" title="${escapeHtml(t.name)} · ${escapeHtml(clientName(t.clientId))}${isChimbDay?' · ⭐ 침블락 방문일':''}">${star}${escapeHtml(t.name)}${warn}</span>`;
   }).join('');
   const more = events.length>4?`<div style="font-size:10px;color:var(--muted)">+${events.length-4}</div>`:'';
@@ -3413,17 +3413,34 @@ function renderTeamDetail(t){
             const details = (d&&d.details)||[];
             const point_tags = (d&&d.point_tags)||[];
             const star = chimbDates.has(d.date) ? ' <span style="color:#b45309;font-weight:700">⭐ 침블락</span>' : '';
-            // Show ONLY landmark names (방문지) — one bullet per place. No long
-            // activity descriptions, no chip rows. ⭐ on the chimbulak entry.
-            const body = point_tags.length
+            // Top: landmark names (방문지) — clean list
+            const placeList = point_tags.length
               ? point_tags.map(p=>{
                   const isChimb = /침블락|침불락/.test(p);
-                  const prefix = isChimb ? '⭐ ' : '• ';
-                  return `<div style="font-size:14px;line-height:1.6;padding:2px 0;${isChimb?'color:#b45309;font-weight:700':''}">${prefix}${escapeHtml(p)}</div>`;
+                  const prefix = isChimb ? '⭐ ' : '📍 ';
+                  return `<div style="font-size:14px;line-height:1.55;padding:1px 0;${isChimb?'color:#b45309;font-weight:800':'font-weight:600'}">${prefix}${escapeHtml(p)}</div>`;
                 }).join('')
-              : (allEmpty
-                  ? `<div class="muted" style="font-size:12px;line-height:1.5">📍 방문지 자동 인식 실패</div>`
-                  : '<div class="muted" style="font-size:12px">(이 날 방문지 없음)</div>');
+              : '';
+            // Below: brief activity bullets (일정) — short, deduplicated, no
+            // landmark-only rows already shown above
+            const placeCanon = new Set(point_tags.map(p=>p.replace(/\s+/g,'')));
+            const isJustLandmark = (line)=>{
+              const c = line.replace(/\s+/g,'').replace(/^[•·\-*✓▷▶■●◆]+/,'');
+              return placeCanon.has(c);
+            };
+            const activityLines = details
+              .filter(l=>!isJustLandmark(l))
+              .filter(l=>String(l).length<=80)
+              .slice(0,6);
+            const activityList = activityLines.length
+              ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)">
+                  <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:3px">일정</div>
+                  ${activityLines.map(l=>`<div style="font-size:12px;line-height:1.5;color:#475569">- ${escapeHtml(String(l).slice(0,80))}</div>`).join('')}
+                </div>`
+              : '';
+            const body = (placeList + activityList) || (allEmpty
+                ? `<div class="muted" style="font-size:12px;line-height:1.5">📍 방문지 자동 인식 실패</div>`
+                : '<div class="muted" style="font-size:12px">(이 날 방문지 없음)</div>');
             const tagChips = '';
             return `<div style="display:flex;gap:10px;margin-bottom:8px;padding:10px;border-left:4px solid ${t.color||'#3b82f6'};background:var(--panel);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
               <div style="flex:0 0 64px;text-align:center;border-right:1px dashed var(--line);padding-right:8px">
