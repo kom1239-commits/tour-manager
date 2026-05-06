@@ -3397,41 +3397,24 @@ function dayCellHtml(d,other,todayStr,filt){
   const ds = localISO(d);
   const dayNum = d.getDate();
   let events = teamsOnDate(ds).filter(t=>filt==='all'||t.status===filt);
-  const chimbu = chimbulakOnDate(ds);
-  // When chimbulak view is on, only show teams that visit chimbulak today
-  if(_chimbulakViewOn){
-    const ids = new Set(chimbu.map(c=>c.team.id));
-    events = events.filter(t=>ids.has(t.id));
-  }
   const isToday = ds===todayStr;
   const evtHtml = events.slice(0,4).map(t=>{
     const warn = (t.conflicts||[]).filter(c=>c.ignored).length ? '<span class="warn">⚠️</span>' : '';
     const highlight = window._highlightTeamId === t.id ? 'box-shadow:0 0 0 2px #fff,0 0 12px rgba(56,189,248,0.8);animation:pulse 1.5s ease-in-out infinite;' : '';
-    // ⭐ if today is this team's Chimbulak day (manual or auto-detected from schedule text)
+    // 침블락 가는 날만 팀 chip 색깔을 강조 색(#fbbf24 노란색)으로 덮어쓰기.
+    // 별도 🎿 파란 칩은 만들지 않음 — 한 칸만 사용해서 같은 날에 팀이 여러 개
+    // 겹쳐도 구분이 안 가는 문제를 피함.
     const chimbDates = (typeof detectChimbulakDates === 'function') ? new Set(detectChimbulakDates(t)) : new Set();
     const isChimbDay = chimbDates.has(ds);
+    const bg = isChimbDay ? '#fbbf24' : (t.color||'#3b82f6');
+    const fg = isChimbDay ? '#7c2d12' : '#fff';
+    const ring = isChimbDay ? 'outline:2px solid #d97706;outline-offset:-1px;font-weight:800;' : '';
     const star = isChimbDay ? '⭐ ' : '';
-    const ring = isChimbDay ? 'outline:3px solid #fbbf24;outline-offset:-1px;font-weight:800;background:#fbbf24!important;color:#7c2d12!important;' : '';
-    return `<span class="cal-evt" style="background:${t.color||'#3b82f6'};${ring}${highlight}" data-team="${t.id}" title="${escapeHtml(t.name)} · ${escapeHtml(clientName(t.clientId))}${isChimbDay?' · ⭐ 침블락 방문일':''}">${star}${escapeHtml(t.name)}${warn}</span>`;
+    const tip = `${escapeHtml(t.name)} · ${escapeHtml(clientName(t.clientId))}${isChimbDay?' · ⭐ 침블락 방문일':''}`;
+    return `<span class="cal-evt" style="background:${bg};color:${fg};${ring}${highlight}" data-team="${t.id}" title="${tip}">${star}${escapeHtml(t.name)}${warn}</span>`;
   }).join('');
   const more = events.length>4?`<div style="font-size:10px;color:var(--muted)">+${events.length-4}</div>`:'';
-  // Chimbulak markers — always shown when team has a chimbulak visit on this date (regardless of toggle)
-  let chimbuHtml = '';
-  if(chimbu.length){
-    chimbuHtml = chimbu.map(({team,visit})=>{
-      const guests = getTeamGuestCount(team);
-      const gc = +visit.guideCount||1;
-      const total = guests + gc;
-      const dual = gc>=2;
-      const bg = dual ? '#f59e0b' : '#06b6d4';
-      const label = dual
-        ? `🎿 ${escapeHtml(team.name)} ${total}명 ⭐2가이드`
-        : `🎿 ${escapeHtml(team.name)} ${total}명`;
-      const tip = `침블락 방문\n${team.name}\n손님 ${guests} + 가이드 ${gc} = ${total}명${visit.notes?'\n메모: '+visit.notes:''}`;
-      return `<span class="cal-evt" style="background:${bg};color:#0f172a;font-weight:600" data-team="${team.id}" title="${escapeHtml(tip)}">${label}</span>`;
-    }).join('');
-  }
-  return `<div class="cal-day ${other?'other':''} ${isToday?'today':''}" data-date="${ds}"><div class="cal-num">${dayNum}</div>${evtHtml}${chimbuHtml}${more}</div>`;
+  return `<div class="cal-day ${other?'other':''} ${isToday?'today':''}" data-date="${ds}"><div class="cal-num">${dayNum}</div>${evtHtml}${more}</div>`;
 }
 // 팀의 trip 일자 중 실제 방문지(point_tags) 가 있는 날짜만 모은 Set 캐시
 const _teamPlaceDatesCache = new Map();
