@@ -3412,16 +3412,19 @@ function renderTeamDetail(t){
           html += `<div class="detail-row"><div class="k">📅 일별 일정</div><div class="v">${dailySchedule.map(d=>{
             const details = (d&&d.details)||[];
             const point_tags = (d&&d.point_tags)||[];
-            const body = details.length
-              ? details.slice(0,12).map(l=>`<div style="font-size:13px;line-height:1.55;padding:1px 0">• ${escapeHtml(String(l).slice(0,160))}${String(l).length>160?'…':''}</div>`).join('')
-                + (details.length>12?`<div class="muted" style="font-size:12px">…외 ${details.length-12}줄</div>`:'')
-              : (allEmpty
-                  ? `<div class="muted" style="font-size:12px;line-height:1.5">📍 일정표 자동 인식 실패. 아래 [방문 활동 (날짜 미배정)] 박스에서 직접 확인하세요.</div>`
-                  : '<div class="muted" style="font-size:12px">(이 날 인식된 일정 없음)</div>');
             const star = chimbDates.has(d.date) ? ' <span style="color:#b45309;font-weight:700">⭐ 침블락</span>' : '';
-            const tagChips = point_tags.length
-              ? `<div style="margin:4px 0 6px">${point_tags.map(p=>`<span style="display:inline-block;background:${/침블락|침불락/.test(p)?'#fbbf24':'#bae6fd'};color:#0f172a;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;margin-right:4px">${/침블락|침불락/.test(p)?'⭐ ':'📍 '}${escapeHtml(p)}</span>`).join('')}</div>`
-              : '';
+            // Show ONLY landmark names (방문지) — one bullet per place. No long
+            // activity descriptions, no chip rows. ⭐ on the chimbulak entry.
+            const body = point_tags.length
+              ? point_tags.map(p=>{
+                  const isChimb = /침블락|침불락/.test(p);
+                  const prefix = isChimb ? '⭐ ' : '• ';
+                  return `<div style="font-size:14px;line-height:1.6;padding:2px 0;${isChimb?'color:#b45309;font-weight:700':''}">${prefix}${escapeHtml(p)}</div>`;
+                }).join('')
+              : (allEmpty
+                  ? `<div class="muted" style="font-size:12px;line-height:1.5">📍 방문지 자동 인식 실패</div>`
+                  : '<div class="muted" style="font-size:12px">(이 날 방문지 없음)</div>');
+            const tagChips = '';
             return `<div style="display:flex;gap:10px;margin-bottom:8px;padding:10px;border-left:4px solid ${t.color||'#3b82f6'};background:var(--panel);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
               <div style="flex:0 0 64px;text-align:center;border-right:1px dashed var(--line);padding-right:8px">
                 <div style="font-size:18px;font-weight:800;color:${t.color||'#3b82f6'};line-height:1.1">${d.day_number}일</div>
@@ -4294,15 +4297,27 @@ function parseCommonInfo(t){
 // Order matters: longer/more-specific names first so '카인디 호수' wins
 // over '카인디' alone, and '콕토베 전망대' wins over '콕토베'.
 const APP_LANDMARKS = [
-  '카인디 호수','카인디호수','카인디','콜사이 호수','콜사이호수','콜사이',
-  '차른 강','차른강','차른 캐년','차른캐년','블랙 캐년','블랙캐년',
-  '침블락','침불락','메데우','콕토베 전망대','콕토베',
-  '첸코프 성당','첸코프','젠코프','아르바트 거리','아르바트',
-  '국립공원','독립기념탑','공화국광장','파노필로프 공원','파노필로프',
+  '카인디 호수','카인디호수','카인디',
+  '콜사이 호수','콜사이호수','콜사이',
+  '이식 호수','이식쿨','이식',
+  '차른 캐년','차른캐년','차른 강','차른강','차른',
+  '블랙 캐년','블랙캐년',
+  '루나 캐년','루나협곡','루나',
+  '침블락','침불락','메데우',
+  '콕토베 전망대','콕토베',
+  '첸코프 성당','첸코프','젠코프','첸코바 성당','첸코바',
+  '아르바트 예술의 거리','아르바트 거리','아르바트',
+  '신장 위그르 마을','위그르 마을',
+  '판필로프 28인 추모공원','판필로프 공원','판필로프','파노필로프',
+  '질뇨니 바자르','질뇨니',
+  '그랜드 차른 캐년','그랜드 캐년',
+  '황금 인간 박물관','황금인간 박물관',
+  '국립공원','독립기념탑','공화국광장',
   '그린 마켓','녹색시장','중앙시장','재래시장',
-  '국제공항','부산','인천','알마티','아스타나','누르술탄'
+  '카자흐스탄 알마티 국제공항','알마티 국제공항','국제공항',
+  '부산','인천','알마티','아스타나','누르술탄'
 ];
-function extractPointTags(detailLines, max=2){
+function extractPointTags(detailLines, max=20){
   if(!detailLines || !detailLines.length) return [];
   const text = detailLines.join(' ');
   const found = [];
