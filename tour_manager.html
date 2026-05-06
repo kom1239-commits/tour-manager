@@ -1690,7 +1690,41 @@ function analyzeImportedText(text){
   renderDetected();
   prefillImportForm();
 }
+// 원문에서 "제1일 ~ 제6일" 같은 일차 개수를 찾는다
+function detectDayCountFromText(text){
+  const nums = [];
+  let m;
 
+  const re1 = /제\s*(\d{1,2})\s*일/g;
+  while((m = re1.exec(text))){
+    nums.push(Number(m[1]));
+  }
+
+  const re2 = /(\d{1,2})\s*일\s*[차째]/g;
+  while((m = re2.exec(text))){
+    nums.push(Number(m[1]));
+  }
+
+  const re3 = /(?:Day|DAY|day)\s*(\d{1,2})/g;
+  while((m = re3.exec(text))){
+    nums.push(Number(m[1]));
+  }
+
+  return nums.length ? Math.max(...nums) : 0;
+}
+
+// 날짜 하나만 잡힌 경우: 일차 개수로 출국일 자동 계산
+function guessDepartureByDayCount(arrivalDate, text){
+  if(!arrivalDate) return '';
+
+  const dayCount = detectDayCountFromText(text);
+  if(dayCount <= 1) return arrivalDate;
+
+  const d = new Date(arrivalDate);
+  d.setDate(d.getDate() + dayCount - 1);
+
+  return localISO(d);
+}
 function detectDates(text){
   const found = new Map();
   const yr = new Date().getFullYear();
@@ -1775,15 +1809,27 @@ function setImportRange(d){
 }
 
 function prefillImportForm(){
-  if(_detected.dates.length>=1){
-    document.getElementById('imp_arrival').value = _detected.dates[0];
-    document.getElementById('imp_departure').value = _detected.dates[_detected.dates.length-1];
+  if(_detected.dates.length >= 1){
+    const arrival = _detected.dates[0];
+
+    // 날짜가 여러 개 잡히면 마지막 날짜 사용
+    // 날짜가 하나만 잡히면 "제N일" 기준으로 출국일 자동 계산
+    let departure = _detected.dates[_detected.dates.length - 1];
+
+    if(_detected.dates.length === 1){
+      departure = guessDepartureByDayCount(arrival, _importedText || '');
+    }
+
+    document.getElementById('imp_arrival').value = arrival;
+    document.getElementById('imp_departure').value = departure;
   }
-  if(_detected.hotels.length>=1){
+
+  if(_detected.hotels.length >= 1){
     document.getElementById('imp_hotel').value = _detected.hotels[0].id;
   }
+
   document.getElementById('imp_places').value = _detected.places.join(', ');
-  // suggest team name from filename
+
   if(_importedFile && !document.getElementById('imp_name').value){
     const base = _importedFile.name.replace(/\.[^.]+$/,'');
     document.getElementById('imp_name').value = base;
@@ -1863,8 +1909,13 @@ async function oneClickRegister(){
     alert('자동 인식된 날짜가 없습니다. 위 [✏️ 검토 후 저장] 영역에서 도착일을 직접 입력해 주세요.');
     return;
   }
-  const arrival = _detected.dates[0] || document.getElementById('imp_arrival').value;
-  const departure = _detected.dates[_detected.dates.length-1] || arrival;
+ const arrival = _detected.dates[0] || document.getElementById('imp_arrival').value;
+
+let departure = _detected.dates[_detected.dates.length - 1] || document.getElementById('imp_departure').value || arrival;
+
+if(departure === arrival){
+  departure = guessDepartureByDayCount(arrival, _importedText || '');
+}
   const hotelId = _detected.hotels[0]?.id || '';
   const places = _detected.places.join(', ');
   const baseName = (_importedFile?.name || '새 팀').replace(/\.[^.]+$/,'');
@@ -3415,6 +3466,10 @@ function renderTeamDetail(t){
         console.error('일정 파싱 오류:', err);
         return `<div class="detail-row"><div class="k">⚠️ 일정 표시 오류</div><div class="v" style="font-size:12px;color:#dc2626">파싱 중 오류 발생: ${escapeHtml(err && err.message || String(err))}<br><span class="muted" style="font-size:11px">메모/원본 텍스트는 정상적으로 저장되어 있습니다. 일정표 다시 가져오기로 새 팀 등록 시 정상화됩니다.</span></div></div>`;
       }
+      
+      
+      
+      return html;
     })()}
     ${(t.attachments||[]).length?`<div class="detail-row"><div class="k">첨부파일</div><div class="v">${(t.attachments||[]).map(a=>`<a href="${a.dataUrl}" download="${escapeHtml(a.name)}" style="color:var(--accent);text-decoration:underline;font-size:12px;margin-right:8px">📎 ${escapeHtml(a.name)}</a>`).join('')}</div></div>`:''}
     ${t.notes?`<div class="detail-row"><div class="k">메모</div><div class="v" style="white-space:pre-wrap;font-size:12px">${escapeHtml(t.notes)}</div></div>`:''}
@@ -4167,23 +4222,21 @@ function htmlScheduleToText(html){
       .replace(/<\/p\s*>/gi,'\n')
       .replace(/<\/li\s*>/gi,'\n')
       .replace(/<\/div\s*>/gi,'\n');
-    return tmp.textContent.replace(/ /g,' ').replace(/\r/g,'').replace(/\n[ \t]+/g,'\n').trim();
+    return tmp.textContent.replace(/ /g,' ').replace(/\r/g,'').replace(/\n[ \t]+/g,'\n').trim();
   };
   const dayRe = /제\s*(\d{1,2})\s*일|(\d{1,2})\s*일\s*[차째]|Day\s*(\d{1,2})|DAY\s*(\d{1,2})|\[\s*(\d{1,2})\s*\]|([첫둘두셋세넷네다섯여섯일곱여덟아홉열])\s*째\s*날/;
-  // Section-divider keywords: once a row starts with any of these we leave
-  // the day-by-day part of the document and enter '공통 정보'. Subsequent
-  // rows must NOT be merged into the previous day.
   const stopRe = /^[•·\-*✓▷▶■●◆\s]*(단체\s?명|피켓\s?명|그룹\s?명|인\s?원|룸\s?타입|객실\s?타입|현지\s?가이드|인솔자|포함\s?사항|불포함\s?사항|포함\b|불포함\b|숙박\s*(?:정보)?|비고|특이\s?사항|기타\s?사항|수신|발신|항공편|편명|문의|연락처|담당자|출발일|도착일|출국일|입국일|여행\s?기간|행사\s?기간|기간\s*[:：]|상품\s?명)/;
   const ord={'첫':1,'둘':2,'두':2,'셋':3,'세':3,'넷':4,'네':4,'다섯':5,'여섯':6,'일곱':7,'여덟':8,'아홉':9,'열':10};
   const tables = sandbox.querySelectorAll('table');
   const out = [];
   const common = [];
   let inCommon = false;
-  // Preamble (text outside tables)
+
   const nonTable = Array.from(sandbox.querySelectorAll('p,h1,h2,h3,h4,h5,h6'))
     .filter(el=>!el.closest('table'))
     .map(elText).filter(Boolean);
   if(nonTable.length) out.push(nonTable.join('\n'));
+
   if(tables.length){
     for(const table of tables){
       let lastDay = '';
@@ -4191,14 +4244,7 @@ function htmlScheduleToText(html){
       for(const row of rows){
         const cells = Array.from(row.children).map(elText);
         if(!cells.length || !cells.some(Boolean)) continue;
-        // Detect transition into the common-info section
-        if(!inCommon && cells.some(c => stopRe.test(c))) inCommon = true;
-        if(inCommon){
-          const merged = cells.filter(Boolean).join(' / ').trim();
-          if(merged) common.push(merged);
-          continue;
-        }
-        // Find day marker in any cell, prefer leftmost
+
         let dayIdx = -1;
         for(let i=0;i<cells.length;i++){
           const m = cells[i].match(dayRe);
@@ -4207,7 +4253,21 @@ function htmlScheduleToText(html){
             if(n>=1 && n<=31){ lastDay = `제${n}일`; dayIdx = i; break; }
           }
         }
-        // Activity text = remaining cells joined; preserve internal line breaks
+        
+        // ★ 핵심 탈출 스위치: 표 머리글(날짜, 세부일정)이나 '제1일'을 발견하면 공통정보 빨아들이기를 즉시 멈춥니다!
+        const isScheduleHeader = cells.some(c => /^(날짜|일자|지역|교통편|세부일정|식사)$/.test(c.replace(/\s/g,'')));
+        if(dayIdx >= 0 || isScheduleHeader){
+            inCommon = false;
+        } else if(!inCommon && cells.some(c => stopRe.test(c))){
+            inCommon = true;
+        }
+
+        if(inCommon){
+          const merged = cells.filter(Boolean).join(' / ').trim();
+          if(merged) common.push(merged);
+          continue;
+        }
+
         const activity = cells.map((c,i)=>i===dayIdx?'':c).join('\n').split('\n').map(s=>s.trim()).filter(Boolean);
         if(activity.length){
           const prefix = lastDay || '';
@@ -4231,10 +4291,14 @@ function htmlScheduleToText(html){
 // team detail can render it as its own section.
 function parseCommonInfo(t){
   const text = String(t && t.originalText || '');
-  const idx = text.indexOf('━━━━━ 공통정보 ━━━━━');
-  if(idx < 0) return [];
-  return text.slice(idx + '━━━━━ 공통정보 ━━━━━'.length)
-    .split('\n').map(s=>s.trim()).filter(Boolean);
+  const match = text.match(/━━━━━ 공통정보 ━━━━━|■ 행사 공통 정보/);
+  if(!match) return [];
+  
+  let commonText = text.slice(match.index + match[0].length);
+  const endMatch = commonText.match(/■ 일자별 일정/);
+  if(endMatch) commonText = commonText.slice(0, endMatch.index);
+  
+  return commonText.split('\n').map(s=>s.trim()).filter(Boolean);
 }
 
 // Known Almaty / Kazakhstan landmarks for point_tags extraction.
@@ -4269,6 +4333,47 @@ function extractPointTags(detailLines, max=2){
 }
 
 // API-style structured parse — { common_info, daily_schedule[] }
+ function compactDayText(rawLines){
+  const priorityWords = /침블락|빅알마티|아유사이|차른|캐년|카인디|콜사이|실로암|콕토베|첸코바|판필로브|아르바트|바자르|시장|온천|트레킹|하이킹|케이블카|오프로드|공항|출발|도착/;
+
+  const lines = Array.isArray(rawLines)
+    ? rawLines
+    : String(rawLines || '').split(/\n+/);
+
+  const cleaned = lines
+    .map(x => String(x || '').trim())
+    .filter(Boolean)
+    .filter(x => !/^(조|중|석)\s*:/.test(x))
+    .filter(x => !/^HOTEL\s*:/i.test(x))
+    .filter(x => !/호텔\s*조식|호텔\s*투숙|휴식|가이드\s*미팅/.test(x))
+    .filter(x => !/^전\s*일$/.test(x));
+
+  const priority = cleaned.filter(x => priorityWords.test(x));
+  const normal = cleaned.filter(x => !priorityWords.test(x));
+
+  return [...priority, ...normal].slice(0, 6);
+}
+  function compactDayText(rawLines){
+  const priorityWords = /침블락|빅알마티|아유사이|차른|캐년|카인디|콜사이|실로암|콕토베|첸코바|젠코바|판필로브|아르바트|바자르|시장|온천|트레킹|하이킹|케이블카|오프로드|공항|출발|도착/;
+
+  const lines = Array.isArray(rawLines)
+    ? rawLines
+    : String(rawLines || '').split(/\n+/);
+
+  const cleaned = lines
+    .map(x => String(x || '').trim())
+    .filter(Boolean)
+    .filter(x => !/^(조|중|석)\s*:/.test(x))
+    .filter(x => !/^HOTEL\s*:/i.test(x))
+    .filter(x => !/호텔\s*조식|호텔\s*투숙|휴식|가이드\s*미팅/.test(x))
+    .filter(x => !/^전\s*일$/.test(x))
+    .filter(x => !/포함사항|불포함|숙박|비고|룸타입|인원|출발일|수\s*신|발신일/.test(x));
+
+  const priority = cleaned.filter(x => priorityWords.test(x));
+  const normal = cleaned.filter(x => !priorityWords.test(x));
+
+  return [...priority, ...normal].slice(0, 6);
+}
 function parseScheduleStructured(t){
   const ci = parseCommonInfoStructured(t);
   const days = parseScheduleByDay(t) || [];
@@ -4291,14 +4396,15 @@ function parseScheduleStructured(t){
       if(isMetaItineraryLine(l)) continue;
       if(!details.length || details[details.length-1] !== l) details.push(l);
     }
-    out.daily_schedule.push({
-      day_number: d.idx,
-      day_label: `제${d.idx}일`,
-      date: d.date,
-      dow: d.dow,
-      point_tags: extractPointTags(details, 2),
-      details
-    });
+    const compactDetails = compactDayText(details);
+
+out.daily_schedule.push({
+  day_number: d.idx,
+  day_label: `제${d.idx}일`,
+  date: d.date,
+  dow: d.dow,
+  details: compactDetails
+});
   }
   return out;
 }
@@ -4309,26 +4415,23 @@ function parseScheduleStructured(t){
 function formatScheduleMarkdown(t){
   const s = parseScheduleStructured(t);
   if(!s) return '';
-  const c = s.common_info;
+
   const lines = [];
-  lines.push('■ 행사 공통 정보');
-  lines.push(`- 단체명: ${c.title||''}`);
-  lines.push(`- 현지가이드: ${c.guide||''}`);
-  lines.push(`- 포함사항: ${c.includes.join(', ')}`);
-  lines.push(`- 불포함사항: ${c.excludes.join(', ')}`);
-  lines.push(`- 숙박: ${c.hotels.join(', ')}`);
-  lines.push(`- 비고: ${c.notes.join(', ')}`);
-  lines.push('');
-  lines.push('■ 일자별 일정');
+  lines.push('■ 일별 일정');
+
   for(const d of s.daily_schedule){
     lines.push('');
     lines.push(`## ${d.day_label}`);
-    if(d.details.length){
-      for(const x of d.details) lines.push(`- ${x}`);
+
+    if(d.details && d.details.length){
+      for(const x of d.details){
+        lines.push(`- ${x}`);
+      }
     } else {
-      lines.push('- (일정표에서 인식된 내용 없음)');
+      lines.push('- 일정표에서 인식된 내용 없음');
     }
   }
+
   return lines.join('\n');
 }
 function copyScheduleMarkdown(teamId){
@@ -4374,19 +4477,24 @@ function parseScheduleByDay(t){
     const d=new Date(arrival); d.setDate(d.getDate()+i);
     days.push({idx:i+1, date:localISO(d), dow:dows[d.getDay()], content:''});
   }
-  // Pull text from BOTH originalText and notes — older imports only have notes.
-  // Cut at the '공통정보' sentinel so trip-meta rows below never get attributed
-  // to a day even when no obvious section break exists.
+
+  // [수정된 핵심 부분] 텍스트에서 '일자별 일정' 부분만 정확히 분리해냅니다.
   let text = String(t.originalText||'') + (t.originalText?'\n':'') + String(t.notes||'');
-  const cutIdx = text.indexOf('━━━━━ 공통정보 ━━━━━');
-  if(cutIdx >= 0) text = text.slice(0, cutIdx);
+  const scheduleMatch = text.match(/■ 일자별 일정/);
+  if(scheduleMatch) {
+    text = text.slice(scheduleMatch.index);
+  } else {
+    const oldMatch = text.match(/━━━━━ 공통정보 ━━━━━/);
+    if(oldMatch) text = text.slice(0, oldMatch.index);
+  }
+
   if(!text.trim()) return days;
   const ord={'첫':1,'둘':2,'두':2,'셋':3,'세':3,'넷':4,'네':4,'다섯':5,'여섯':6,'일곱':7,'여덟':8,'아홉':9,'열':10};
   const arrYear = arrival.getFullYear();
   const markers = [];
   const push = (idx, start, end) => { if(idx>=1 && idx<=totalDays) markers.push({idx, start, end}); };
   let m, re;
-  // Pattern A1: "제N일" (Korean tour-doc convention with merged cells)
+  // Pattern A1: "제N일"
   re=/제\s*(\d{1,2})\s*일/g;
   while((m=re.exec(text))) push(+m[1], m.index, m.index+m[0].length);
   // Pattern A2: "N일차" / "N일째"
@@ -4412,7 +4520,8 @@ function parseScheduleByDay(t){
   }
   if(!markers.length) return days;
   markers.sort((a,b)=>a.start-b.start);
-  // Dedupe overlapping markers (e.g. "제2일 (5/19)" matches twice for the same day)
+  
+  // Dedupe overlapping markers
   const cleaned = [];
   for(const mk of markers){
     const last = cleaned[cleaned.length-1];
@@ -4423,9 +4532,7 @@ function parseScheduleByDay(t){
   for(let i=0;i<cleaned.length;i++){
     const cur=cleaned[i], next=cleaned[i+1];
     let chunk = text.slice(cur.end, next ? next.start : text.length).trim();
-    // Only truncate if a stop keyword appears as a clear section header at
-    // the start of a line followed by '/' or ':' — this avoids matching
-    // ordinary words like '발신일' or '출발 후 호텔'.
+    // Only truncate if a stop keyword appears as a clear section header
     const stopHeader = /(?:^|\n)\s*[•·\-*✓▷▶■●◆\s]*(?:단체\s?명|피켓\s?명|그룹\s?명|인\s?원|룸\s?타입|객실\s?타입|현지\s?가이드|인솔자|포함\s?사항|불포함\s?사항|숙박\s*정보|특이\s?사항|기타\s?사항|항공편|편명|연락처|담당자|상품\s?명|행사\s?기간|여행\s?기간)\s*[\/／:：]/m;
     const cutMid = chunk.search(stopHeader);
     if(cutMid > 0) chunk = chunk.slice(0, cutMid).trim();
@@ -4436,7 +4543,6 @@ function parseScheduleByDay(t){
   }
   return days;
 }
-
 // ============== CHIMBULAK (Шымбулак) view ==============
 let _chimbulakCursor = (()=>{const d=new Date();d.setDate(1);return d})();
 function changeChimbulakMonth(d){_chimbulakCursor.setMonth(_chimbulakCursor.getMonth()+d);renderChimbulak()}
@@ -4505,8 +4611,7 @@ function detectChimbulakDates(t){
       // 등반/등산/스키/보드/메데우, or 'cable'/'gondola'. Generic verbs like
       // 입장/이동/관광 are too noisy because they appear in inclusion lists.
       const isChimbActivity = !isMetaLine
-        && /침블락|침불락|chimbulak|shymbulak/i.test(line)
-        && /케이블카|곤돌라|리프트|3200|2단|3단|등반|등산|스키|보드|메데우|cable|gondola/i.test(line);
+          && /침블락|침불락|chimbulak|shymbulak/i.test(line);
       if(isChimbActivity && curDay >= 1){
         const d = new Date(t.arrivalDate);
         d.setDate(d.getDate()+curDay-1);
@@ -4663,4 +4768,3 @@ async function installApp(){
 </script>
 </body>
 </html>
-
