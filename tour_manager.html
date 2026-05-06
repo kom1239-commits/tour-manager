@@ -4488,6 +4488,88 @@ function parseCommonInfoStructured(t){
   return out;
 }
 
+// ===============================
+// 일정표 화면 표시용: 일별 방문지 간략 요약
+// ===============================
+function normalizePlaceName(s){
+  s = String(s || '').trim();
+  s = s
+    .replace(/[()（）]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/[·ㆍ]/g, ' ')
+    .trim();
+  const map = [
+    { re: /침블락|침불락|천산\s*투어\s*[-–]?\s*침블락|шымбулак|chimbulak/i, name: '⭐ 침블락' },
+    { re: /빅\s*알마티|빅알마티\s*호수|Big\s*Almaty/i, name: '빅알마티 호수' },
+    { re: /아유사이|아유\s*사이/i, name: '아유사이 협곡' },
+    { re: /콜사이|Kolsai/i, name: '콜사이 호수' },
+    { re: /카인디|Каинды|Kaindy/i, name: '카인디 호수' },
+    { re: /그랜드\s*차른/i, name: '차른 캐년' },
+    { re: /차른|차린|Charyn|Чарын/i, name: '차른 캐년' },
+    { re: /루나|Lunar/i, name: '루나 협곡' },
+    { re: /블랙\s*캐년|Black\s*Canyon/i, name: '블랙 캐년' },
+    { re: /실로암|Siloam/i, name: '실로암 온천' },
+    { re: /콕토베|콕\s*토베|Kok[-\s]?Tobe/i, name: '콕토베 전망대' },
+    { re: /젠코바|첸코바|첸코프|Zenkov/i, name: '젠코바 성당' },
+    { re: /판필로브|판필로프/i, name: '판필로브 28인 추모공원' },
+    { re: /질뇨니|녹색시장|그린\s*바자르|Green\s*Bazaar/i, name: '질뇨니 바자르' },
+    { re: /아르바트/i, name: '아르바트 거리' },
+    { re: /신장\s*위그르|위그르/i, name: '신장 위그르 마을' },
+    { re: /알마티\s*국제\s*공항|^.*공항.*$/i, name: '알마티 공항' },
+    { re: /인천/i, name: '인천공항' },
+    { re: /알마티\s*시내|시내\s*관광/i, name: '알마티 시내관광' }
+  ];
+  for(const item of map){
+    if(item.re.test(s)) return item.name;
+  }
+  return '';
+}
+function isNoiseScheduleLine(line){
+  line = String(line || '').trim();
+  if(!line) return true;
+  if(/행사\s*공통정보|포함사항|불포함|비\s*고|수\s*신|발신일|출발일|인\s*원|룸타입|숙\s*박|노팁|노쇼핑|노옵션/i.test(line)) return true;
+  if(/^HOTEL\s*:/i.test(line)) return true;
+  if(/^(조|중|석)\s*:/.test(line)) return true;
+  if(/호텔\s*조식|호텔식|기내식|현지식|한\s*식|고려인식당|밀박스|라그마|샤슬릭/i.test(line)) return true;
+  if(/호텔\s*투숙|호텔\s*휴식|가이드\s*미팅|전용차량|차량|이동\s*\(|소요\s*예정|자유\s*시간|기념\s*촬영/i.test(line)) return true;
+  if(/해발|국립공원|위치한|배경으로|물색|뽐냅니다|트레킹\s*합니다|루트|안전을\s*위해/i.test(line)) return true;
+  if(/침식|풍화|작용|만들어진|거대한|아름다운|경치\s*감상/i.test(line)) return true;
+  if(/상기\s*일정|현지\s*사정|변경될\s*수/i.test(line)) return true;
+  if(/^\d{1,2}:\d{2}$/.test(line)) return true;
+  if(/^[A-Z]{2}\s*\d{2,4}$/.test(line)) return true;
+  if(/^전\s*일$/.test(line)) return true;
+  return false;
+}
+function compactDayText(raw){
+  const text = String(raw || '');
+  const lines = text
+    .split(/\n+/)
+    .map(x => x.trim())
+    .filter(Boolean)
+    .filter(x => !isNoiseScheduleLine(x));
+  const places = [];
+  for(const line of lines){
+    const place = normalizePlaceName(line);
+    if(place && !places.includes(place)){
+      places.push(place);
+    }
+  }
+  if(!places.length){
+    const fallback = lines
+      .map(x => x
+        .replace(/호텔\s*조식\s*후?/g, '')
+        .replace(/중식\s*후?/g, '')
+        .replace(/석식\s*후?/g, '')
+        .replace(/관광|방문|체험|하이킹|트레킹|이동/g, '')
+        .trim()
+      )
+      .filter(Boolean)
+      .slice(0, 4);
+    return fallback.map(x => '- ' + x).join('\n');
+  }
+  return places.map(x => '- ' + x).join('\n');
+}
+
 function parseScheduleByDay(t){
   if(!t || !t.arrivalDate || !t.departureDate) return null;
   const dows = ['일','월','화','수','목','금','토'];
@@ -4559,7 +4641,8 @@ function parseScheduleByDay(t){
     if(cutMid > 0) chunk = chunk.slice(0, cutMid).trim();
     const slot = days[cur.idx-1];
     if(slot){
-      slot.content = (slot.content ? slot.content+'\n' : '') + chunk;
+      slot.rawContent = (slot.rawContent ? slot.rawContent+'\n' : '') + chunk;
+      slot.content = compactDayText(slot.rawContent);
     }
   }
   return days;
