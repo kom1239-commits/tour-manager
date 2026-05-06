@@ -4942,12 +4942,21 @@ function renderChimbulak(){
   const todayStr=localISO(new Date());
   const byDate={};
   teams.forEach(t=>{
-    let d=new Date(t.arrivalDate);
-    const end=new Date(t.departureDate);
-    while(d<=end){
-      const ds=localISO(d);
-      (byDate[ds]=byDate[ds]||[]).push(t);
-      d.setDate(d.getDate()+1);
+    // 침블락 탭 캘린더는 침블락 방문일만 표시 (트립 전체가 아님)
+    const chimbDates = teamChimbDates[t.id] || new Set();
+    if(chimbDates.size){
+      chimbDates.forEach(ds => {
+        (byDate[ds]=byDate[ds]||[]).push(t);
+      });
+    } else {
+      // 자동·수동 모두 잡힌 게 없으면 trip 전체로 fallback
+      let d=new Date(t.arrivalDate);
+      const end=new Date(t.departureDate);
+      while(d<=end){
+        const ds=localISO(d);
+        (byDate[ds]=byDate[ds]||[]).push(t);
+        d.setDate(d.getDate()+1);
+      }
     }
   });
   const cellHtml=(d,other)=>{
