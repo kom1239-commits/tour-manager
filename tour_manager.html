@@ -3349,68 +3349,72 @@ function renderTeamDetail(t){
       return `<div style="margin-bottom:4px"><strong>${v.date||'-'}</strong> · 손님 ${guests} + 가이드 ${gc} = <strong>${tot}명</strong>${dual?' <span class="badge" style="background:#f59e0b22;color:#fde047">⭐ 가이드 2명</span>':''}${v.notes?` · <span class="muted">${escapeHtml(v.notes)}</span>`:''}</div>`;
     }).join('')}</div></div>`:''}
     ${(()=>{
-      const struct = parseScheduleStructured(t);
-      const monthDay = (ds)=>{ const d=new Date(ds); return `${d.getMonth()+1}월 ${d.getDate()}일`; };
-      let html = '';
-      if(struct && struct.daily_schedule.length){
-        const chimbDates = new Set(detectChimbulakDates(t));
-        const allEmpty = struct.daily_schedule.every(d=>!d.details.length);
-        // When parsing fails for ALL days, show available 방문 활동 (not assigned to a specific day)
-        // distributed as a hint inside each day box.
-        const visitHints = allEmpty ? (t.visitPlaces||[]).filter(p=>p && !isMetaItineraryLine(p)) : [];
-        html += `<div class="detail-row"><div class="k">📅 일별 일정</div><div class="v">${struct.daily_schedule.map(d=>{
-          const body = d.details.length
-            ? d.details.slice(0,12).map(l=>`<div style="font-size:13px;line-height:1.55;padding:1px 0">• ${escapeHtml(l.slice(0,160))}${l.length>160?'…':''}</div>`).join('')
-              + (d.details.length>12?`<div class="muted" style="font-size:12px">…외 ${d.details.length-12}줄</div>`:'')
-            : (allEmpty
-                ? `<div class="muted" style="font-size:12px;line-height:1.5">📍 일정표 자동 인식 실패. 아래 [방문 활동 (날짜 미배정)] 박스에서 직접 확인하세요. 더 자세한 분석을 원하면 일정표 다시 가져오기로 새 팀 등록 권장.</div>`
-                : '<div class="muted" style="font-size:12px">(이 날 인식된 일정 없음)</div>');
-          const star = chimbDates.has(d.date) ? ' <span style="color:#b45309;font-weight:700">⭐ 침블락</span>' : '';
-          const tagChips = d.point_tags.length
-            ? `<div style="margin:4px 0 6px">${d.point_tags.map(p=>`<span style="display:inline-block;background:${/침블락|침불락/.test(p)?'#fbbf24':'#bae6fd'};color:#0f172a;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;margin-right:4px">${/침블락|침불락/.test(p)?'⭐ ':'📍 '}${escapeHtml(p)}</span>`).join('')}</div>`
-            : '';
-          return `<div style="margin-bottom:10px;padding:10px 12px;border-left:4px solid ${t.color||'#3b82f6'};background:var(--panel);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
-            <div style="font-weight:700;font-size:14px;margin-bottom:4px">${monthDay(d.date)} (${d.dow}) · <span class="muted" style="font-weight:400;font-size:13px">${d.day_label}</span>${star}</div>
-            ${tagChips}
-            ${body}
-          </div>`;
-        }).join('')}
-        ${allEmpty && (t.visitPlaces||[]).length ? `<div style="margin-top:8px;padding:10px 12px;background:#fef3c7;border:1px dashed #f59e0b;border-radius:6px"><div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">📍 방문 활동 (날짜 미배정)</div>${(t.visitPlaces||[]).filter(p=>!isMetaItineraryLine(p)).map(p=>`<div style="font-size:13px;line-height:1.5">• ${escapeHtml(p)}</div>`).join('')}</div>`:''}
-        </div></div>`;
+      try{
+        const struct = parseScheduleStructured(t) || {common_info:{}, daily_schedule:[]};
+        const dailySchedule = struct.daily_schedule || [];
+        const monthDay = (ds)=>{ const d=new Date(ds); return `${d.getMonth()+1}월 ${d.getDate()}일`; };
+        let html = '';
+        if(dailySchedule.length){
+          let chimbDates;
+          try{ chimbDates = new Set(detectChimbulakDates(t)||[]); }catch(e){ chimbDates = new Set(); }
+          const allEmpty = dailySchedule.every(d=>!((d&&d.details)||[]).length);
+          html += `<div class="detail-row"><div class="k">📅 일별 일정</div><div class="v">${dailySchedule.map(d=>{
+            const details = (d&&d.details)||[];
+            const point_tags = (d&&d.point_tags)||[];
+            const body = details.length
+              ? details.slice(0,12).map(l=>`<div style="font-size:13px;line-height:1.55;padding:1px 0">• ${escapeHtml(String(l).slice(0,160))}${String(l).length>160?'…':''}</div>`).join('')
+                + (details.length>12?`<div class="muted" style="font-size:12px">…외 ${details.length-12}줄</div>`:'')
+              : (allEmpty
+                  ? `<div class="muted" style="font-size:12px;line-height:1.5">📍 일정표 자동 인식 실패. 아래 [방문 활동 (날짜 미배정)] 박스에서 직접 확인하세요.</div>`
+                  : '<div class="muted" style="font-size:12px">(이 날 인식된 일정 없음)</div>');
+            const star = chimbDates.has(d.date) ? ' <span style="color:#b45309;font-weight:700">⭐ 침블락</span>' : '';
+            const tagChips = point_tags.length
+              ? `<div style="margin:4px 0 6px">${point_tags.map(p=>`<span style="display:inline-block;background:${/침블락|침불락/.test(p)?'#fbbf24':'#bae6fd'};color:#0f172a;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;margin-right:4px">${/침블락|침불락/.test(p)?'⭐ ':'📍 '}${escapeHtml(p)}</span>`).join('')}</div>`
+              : '';
+            return `<div style="margin-bottom:10px;padding:10px 12px;border-left:4px solid ${t.color||'#3b82f6'};background:var(--panel);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
+              <div style="font-weight:700;font-size:14px;margin-bottom:4px">${monthDay(d.date)} (${d.dow}) · <span class="muted" style="font-weight:400;font-size:13px">${d.day_label}</span>${star}</div>
+              ${tagChips}
+              ${body}
+            </div>`;
+          }).join('')}
+          ${allEmpty && (t.visitPlaces||[]).length ? `<div style="margin-top:8px;padding:10px 12px;background:#fef3c7;border:1px dashed #f59e0b;border-radius:6px"><div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">📍 방문 활동 (날짜 미배정)</div>${(t.visitPlaces||[]).filter(p=>!isMetaItineraryLine(p)).map(p=>`<div style="font-size:13px;line-height:1.5">• ${escapeHtml(p)}</div>`).join('')}</div>`:''}
+          </div></div>`;
+        }
+        if((t.visitPlaces||[]).length){
+          html += `<div class="detail-row"><div class="k">방문지 태그</div><div class="v">${(t.visitPlaces||[]).map(p=>`<span class="tag">${escapeHtml(p)}</span>`).join(' ')}</div></div>`;
+        }
+        const ci = parseCommonInfoStructured(t) || {};
+        const includes = ci.포함사항||[], excludes = ci.불포함||[], hotels = ci.숙박||[], notes = ci.비고||[], etc = ci.기타||[];
+        const hasAny = ci.단체명 || ci.현지가이드 || includes.length || excludes.length || hotels.length || notes.length || etc.length;
+        if(hasAny){
+          const row = (label, content) => content ? `<div style="margin-bottom:6px"><span style="font-size:11px;font-weight:700;color:var(--accent)">${label}</span><div style="font-size:12px;line-height:1.5;margin-top:2px">${content}</div></div>` : '';
+          const list = arr => (arr||[]).length ? arr.map(s=>`<div>• ${escapeHtml(s)}</div>`).join('') : '';
+          html += `<div class="detail-row"><div class="k">📋 행사 공통 정보</div><div class="v">
+            ${row('단체명', ci.단체명?escapeHtml(ci.단체명):'')}
+            ${row('현지가이드', ci.현지가이드?escapeHtml(ci.현지가이드):'')}
+            ${row('포함사항', list(includes))}
+            ${row('불포함', list(excludes))}
+            ${row('숙박', list(hotels))}
+            ${row('비고', list(notes))}
+            ${etc.length?row('기타', list(etc)):''}
+          </div></div>`;
+        }
+        const md = formatScheduleMarkdown(t);
+        if(md && md.length > 30){
+          const mdId = 'md_'+(t.id||'x');
+          html += `<div class="detail-row"><div class="k">📝 정리된 일정</div><div class="v">
+            <div class="row" style="gap:6px;margin-bottom:6px">
+              <button class="ghost" onclick="document.getElementById('${mdId}').classList.toggle('hidden');this.textContent=this.textContent.includes('숨기기')?'펼치기 ▾':'숨기기 ▴'">펼치기 ▾</button>
+              <button class="good" onclick="copyScheduleMarkdown('${t.id}')">📋 복사</button>
+            </div>
+            <pre id="${mdId}" class="hidden" style="background:#0f172a;color:#e2e8f0;padding:10px 12px;border-radius:6px;font-family:Consolas,monospace;font-size:12px;white-space:pre-wrap;line-height:1.55;max-height:400px;overflow:auto;margin:0">${escapeHtml(md)}</pre>
+          </div></div>`;
+        }
+        return html;
+      }catch(err){
+        console.error('일정 파싱 오류:', err);
+        return `<div class="detail-row"><div class="k">⚠️ 일정 표시 오류</div><div class="v" style="font-size:12px;color:#dc2626">파싱 중 오류 발생: ${escapeHtml(err && err.message || String(err))}<br><span class="muted" style="font-size:11px">메모/원본 텍스트는 정상적으로 저장되어 있습니다. 일정표 다시 가져오기로 새 팀 등록 시 정상화됩니다.</span></div></div>`;
       }
-      // Always also show the flat visitPlaces list as a quick-glance summary
-      if((t.visitPlaces||[]).length){
-        html += `<div class="detail-row"><div class="k">방문지 태그</div><div class="v">${(t.visitPlaces||[]).map(p=>`<span class="tag">${escapeHtml(p)}</span>`).join(' ')}</div></div>`;
-      }
-      // 공통정보 (행사 공통 정보) — separated, never attributed to a day
-      const ci = parseCommonInfoStructured(t);
-      const hasAny = ci.단체명 || ci.현지가이드 || ci.포함사항.length || ci.불포함.length || ci.숙박.length || ci.비고.length || ci.기타.length;
-      if(hasAny){
-        const row = (label, content) => content ? `<div style="margin-bottom:6px"><span style="font-size:11px;font-weight:700;color:var(--accent)">${label}</span><div style="font-size:12px;line-height:1.5;margin-top:2px">${content}</div></div>` : '';
-        const list = arr => arr.length ? arr.map(s=>`<div>• ${escapeHtml(s)}</div>`).join('') : '';
-        html += `<div class="detail-row"><div class="k">📋 행사 공통 정보</div><div class="v">
-          ${row('단체명', ci.단체명?escapeHtml(ci.단체명):'')}
-          ${row('현지가이드', ci.현지가이드?escapeHtml(ci.현지가이드):'')}
-          ${row('포함사항', list(ci.포함사항))}
-          ${row('불포함', list(ci.불포함))}
-          ${row('숙박', list(ci.숙박))}
-          ${row('비고', list(ci.비고))}
-          ${ci.기타.length?row('기타', list(ci.기타)):''}
-        </div></div>`;
-      }
-      // 마크다운 보기 — copy-friendly normalised view per the parsing spec
-      const md = formatScheduleMarkdown(t);
-      if(md && md.length > 30){
-        const mdId = 'md_'+(t.id||'x');
-        html += `<div class="detail-row"><div class="k">📝 정리된 일정</div><div class="v">
-          <div class="row" style="gap:6px;margin-bottom:6px">
-            <button class="ghost" onclick="document.getElementById('${mdId}').classList.toggle('hidden');this.textContent=this.textContent.includes('숨기기')?'펼치기 ▾':'숨기기 ▴'">펼치기 ▾</button>
-            <button class="good" onclick="copyScheduleMarkdown('${t.id}')">📋 복사</button>
-          </div>
-          <pre id="${mdId}" class="hidden" style="background:#0f172a;color:#e2e8f0;padding:10px 12px;border-radius:6px;font-family:Consolas,monospace;font-size:12px;white-space:pre-wrap;line-height:1.55;max-height:400px;overflow:auto;margin:0">${escapeHtml(md)}</pre>
-        </div></div>`;
-      }
-      return html;
     })()}
     ${(t.attachments||[]).length?`<div class="detail-row"><div class="k">첨부파일</div><div class="v">${(t.attachments||[]).map(a=>`<a href="${a.dataUrl}" download="${escapeHtml(a.name)}" style="color:var(--accent);text-decoration:underline;font-size:12px;margin-right:8px">📎 ${escapeHtml(a.name)}</a>`).join('')}</div></div>`:''}
     ${t.notes?`<div class="detail-row"><div class="k">메모</div><div class="v" style="white-space:pre-wrap;font-size:12px">${escapeHtml(t.notes)}</div></div>`:''}
