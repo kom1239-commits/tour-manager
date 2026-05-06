@@ -93,7 +93,7 @@ tr:hover{background:rgba(56,189,248,.05)}
 .cal-day.other{opacity:.4}
 .cal-day.today{background:#0c4a6e22;border:1px solid var(--accent)}
 .cal-num{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px}
-.cal-evt{display:block;padding:2px 6px;border-radius:4px;font-size:11px;margin-bottom:2px;color:#fff;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal-evt{display:block;padding:1px 4px;border-radius:3px;font-size:10px;line-height:1.25;margin-bottom:1px;color:#fff;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cal-evt:hover{filter:brightness(1.2)}
 .cal-evt .warn{margin-left:4px}
 
@@ -191,9 +191,9 @@ tr:hover{background:rgba(56,189,248,.05)}
   body{overflow-x:hidden}
   .grid2,.grid3,.grid4{grid-template-columns:1fr}
   main{padding:12px;max-width:100vw}
-  .cal-day{min-height:60px;padding:2px;font-size:10px}
+  .cal-day{min-height:88px;padding:2px;font-size:10px}
   .cal-num{font-size:10px;margin-bottom:2px}
-  .cal-evt{font-size:9px;padding:1px 2px;margin-bottom:1px}
+  .cal-evt{font-size:8px;padding:0 2px;margin-bottom:1px;line-height:1.25;min-height:11px}
   .cal-dow{padding:4px 0;font-size:10px}
   #calTitle,#hotelCalTitle,#chimbulakTitle{min-width:auto !important;font-size:14px}
   .cal-head .row button,.cal-head .row select{padding:6px 8px;font-size:12px}
@@ -3407,7 +3407,7 @@ function dayCellHtml(d,other,todayStr,filt){
     const chimbDates = (typeof detectChimbulakDates === 'function') ? new Set(detectChimbulakDates(t)) : new Set();
     const isChimbDay = chimbDates.has(ds);
     const star = isChimbDay
-      ? '<span style="display:inline-block;background:#fff;color:#dc2626;font-weight:900;border-radius:50%;width:14px;height:14px;line-height:14px;text-align:center;font-size:10px;margin-right:3px;box-shadow:0 0 0 1px #dc2626">★</span>'
+      ? '<span style="display:inline-block;background:#fff;color:#dc2626;font-weight:900;border-radius:50%;width:11px;height:11px;line-height:11px;text-align:center;font-size:8px;margin-right:2px;vertical-align:middle">★</span>'
       : '';
     const tip = `${escapeHtml(t.name)} · ${escapeHtml(clientName(t.clientId))}${isChimbDay?' · ⭐ 침블락 방문일':''}`;
     return `<span class="cal-evt" style="background:${t.color||'#3b82f6'};${highlight}" data-team="${t.id}" title="${tip}">${star}${escapeHtml(t.name)}${warn}</span>`;
