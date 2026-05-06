@@ -4310,47 +4310,23 @@ function parseCommonInfo(t){
   return commonText.split('\n').map(s=>s.trim()).filter(Boolean);
 }
 
-// Known Almaty / Kazakhstan landmarks for point_tags extraction.
-// Order matters: longer/more-specific names first so '카인디 호수' wins
-// over '카인디' alone, and '콕토베 전망대' wins over '콕토베'.
-const APP_LANDMARKS = [
-  '카인디 호수','카인디호수','카인디',
-  '콜사이 호수','콜사이호수','콜사이',
-  '이식 호수','이식쿨','이식',
-  '차른 캐년','차른캐년','차른 강','차른강','차른',
-  '블랙 캐년','블랙캐년',
-  '루나 캐년','루나협곡','루나',
-  '침블락','침불락','메데우',
-  '콕토베 전망대','콕토베',
-  '첸코프 성당','첸코프','젠코프','첸코바 성당','첸코바',
-  '아르바트 예술의 거리','아르바트 거리','아르바트',
-  '신장 위그르 마을','위그르 마을',
-  '판필로프 28인 추모공원','판필로프 공원','판필로프','파노필로프',
-  '질뇨니 바자르','질뇨니',
-  '그랜드 차른 캐년','그랜드 캐년',
-  '황금 인간 박물관','황금인간 박물관',
-  '국립공원','독립기념탑','공화국광장',
-  '그린 마켓','녹색시장','중앙시장','재래시장',
-  '카자흐스탄 알마티 국제공항','알마티 국제공항','국제공항',
-  '부산','인천','알마티','아스타나','누르술탄'
-];
+// Calendar/team-card 강조용 point_tags — PLACE_RULES와 동일한 결과를 사용해
+// canonical 한 개만 노출되도록 보장 (옛 자유추출 정규식 제거).
 function extractPointTags(detailLines, max=20){
-  if(!detailLines || !detailLines.length) return [];
-  const text = detailLines.join(' ');
-  const found = [];
-  const seen = new Set();
-  for(const lm of APP_LANDMARKS){
-    if(found.length >= max) break;
-    // Canonical form: collapse spaces so '카인디 호수' and '카인디호수' map together
-    const canon = lm.replace(/\s+/g,'');
-    if(seen.has(canon)) continue;
-    if(text.replace(/\s+/g,'').includes(canon)){
-      // De-duplicate variants by canonical form
-      seen.add(canon);
-      found.push(lm.replace(/\s+/g,' ').trim());
+  if(!detailLines) return [];
+  const arr = Array.isArray(detailLines) ? detailLines : [String(detailLines||'')];
+  const text = arr.map(x=>String(x||'')).join('\n');
+  // PLACE_RULES가 위에 정의되어 있지 않으면 빈 배열 반환 (parseScheduleByDay 위쪽
+  // 호출 안전장치).
+  if(typeof PLACE_RULES === 'undefined' || !Array.isArray(PLACE_RULES)) return [];
+  const out = [];
+  for(const rule of PLACE_RULES){
+    if(out.length >= max) break;
+    if(rule.patterns.some(re => re.test(text)) && !out.includes(rule.canonical)){
+      out.push(rule.canonical);
     }
   }
-  return found;
+  return out;
 }
 
 // API-style structured parse — { common_info, daily_schedule[] }
@@ -4453,82 +4429,77 @@ function parseCommonInfoStructured(t){
 // ===============================
 // 일정표 화면 표시용: 일별 방문지 간략 요약
 // ===============================
-function normalizePlaceName(s){
-  s = String(s || '').trim();
-  s = s
-    .replace(/[()（）]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/[·ㆍ]/g, ' ')
-    .trim();
-  const map = [
-    { re: /침블락|침불락|천산\s*투어\s*[-–]?\s*침블락|шымбулак|chimbulak/i, name: '⭐ 침블락' },
-    { re: /빅\s*알마티|빅알마티\s*호수|Big\s*Almaty/i, name: '빅알마티 호수' },
-    { re: /아유사이|아유\s*사이/i, name: '아유사이 협곡' },
-    { re: /콜사이|Kolsai/i, name: '콜사이 호수' },
-    { re: /카인디|Каинды|Kaindy/i, name: '카인디 호수' },
-    { re: /그랜드\s*차른/i, name: '차른 캐년' },
-    { re: /차른|차린|Charyn|Чарын/i, name: '차른 캐년' },
-    { re: /루나|Lunar/i, name: '루나 협곡' },
-    { re: /블랙\s*캐년|Black\s*Canyon/i, name: '블랙 캐년' },
-    { re: /실로암|Siloam/i, name: '실로암 온천' },
-    { re: /콕토베|콕\s*토베|Kok[-\s]?Tobe/i, name: '콕토베 전망대' },
-    { re: /젠코바|첸코바|첸코프|Zenkov/i, name: '젠코바 성당' },
-    { re: /판필로브|판필로프/i, name: '판필로브 28인 추모공원' },
-    { re: /질뇨니|녹색시장|그린\s*바자르|Green\s*Bazaar/i, name: '질뇨니 바자르' },
-    { re: /아르바트/i, name: '아르바트 거리' },
-    { re: /신장\s*위그르|위그르/i, name: '신장 위그르 마을' },
-    { re: /알마티\s*국제\s*공항|^.*공항.*$/i, name: '알마티 공항' },
-    { re: /인천/i, name: '인천공항' },
-    { re: /알마티\s*시내|시내\s*관광/i, name: '알마티 시내관광' }
-  ];
-  for(const item of map){
-    if(item.re.test(s)) return item.name;
-  }
-  return '';
-}
+// ===============================
+// 일정표 화면 표시용: PLACE_RULES 화이트리스트 기반 방문지 추출
+// canonical 한 개만 결과에 들어가서 '콜사이 호수' / '콜사이' 처럼
+// 길고 짧은 변형이 동시에 노출되는 문제를 원천 차단.
+// ===============================
+const PLACE_RULES = [
+  { canonical: '⭐ 침블락', patterns: [/침블락/i, /침불락/i, /천산\s*투어\s*[-–]?\s*침블락/i, /шымбулак/i, /chimbulak/i] },
+  { canonical: '빅알마티 호수', patterns: [/빅\s*알마티\s*호수/i, /빅알마티\s*호수/i, /Big\s*Almaty/i] },
+  { canonical: '아유사이 협곡', patterns: [/아유사이/i, /아유\s*사이/i] },
+  { canonical: '콜사이 호수', patterns: [/콜사이\s*호수/i, /콜사이\s*호수\s*하이킹/i, /콜사이/i, /Kolsai/i] },
+  { canonical: '카인디 호수', patterns: [/카인디\s*호수/i, /카인디\s*호수\s*오프로드/i, /카인디\s*호수\s*하이킹/i, /카인디/i, /Каинды/i, /Kaindy/i] },
+  { canonical: '차른 캐년', patterns: [/그랜드\s*차른\s*캐년/i, /차른\s*캐년/i, /차른\s*캐니언/i, /차른\s*협곡/i, /차른강/i, /차른/i, /Charyn/i, /Чарын/i] },
+  { canonical: '루나 협곡', patterns: [/루나\s*협곡/i, /Luna/i, /Lunar/i] },
+  { canonical: '블랙 캐년', patterns: [/블랙\s*캐년/i, /블랙\s*캐니언/i, /Black\s*Canyon/i] },
+  { canonical: '실로암 온천', patterns: [/실로암\s*온천/i, /실로암/i, /Siloam/i] },
+  { canonical: '젠코바 성당', patterns: [/젠코바\s*성당/i, /첸코바\s*성당/i, /Zenkov/i] },
+  { canonical: '판필로브 28인 추모공원', patterns: [/판필로브\s*28인/i, /판필로브/i] },
+  { canonical: '질뇨니 바자르', patterns: [/질뇨니\s*바자르/i, /녹색시장/i, /그린\s*바자르/i, /Green\s*Bazaar/i] },
+  { canonical: '아르바트 거리', patterns: [/아르바트\s*예술의\s*거리/i, /아르바트\s*거리/i, /아르바트/i] },
+  { canonical: '콕토베 전망대', patterns: [/콕토베\s*전망대/i, /콕\s*토베\s*전망대/i, /콕토베/i, /Kok[-\s]?Tobe/i] },
+  { canonical: '신장 위그르 마을', patterns: [/신장\s*위그르\s*마을/i, /위그르\s*마을/i] },
+  { canonical: '황금 인간 박물관', patterns: [/황금\s*인간\s*박물관/i, /황금인간\s*박물관/i] },
+  { canonical: '이식 호수', patterns: [/이식\s*호수/i, /Иссык/i, /Issyk/i] },
+  { canonical: '알마티 공항', patterns: [/알마티\s*국제\s*공항/i, /알마티\s*공항/i, /공항\s*이동/i, /공항\s*출발/i] },
+  { canonical: '인천공항', patterns: [/인천\s*국제공항/i, /인천\s*공항/i] }
+];
+
 function isNoiseScheduleLine(line){
   line = String(line || '').trim();
   if(!line) return true;
+  // 일정표 상단 공통 정보 제거
   if(/행사\s*공통정보|포함사항|불포함|비\s*고|수\s*신|발신일|출발일|인\s*원|룸타입|숙\s*박|노팁|노쇼핑|노옵션/i.test(line)) return true;
+  // 호텔/식사 제거
   if(/^HOTEL\s*:/i.test(line)) return true;
   if(/^(조|중|석)\s*:/.test(line)) return true;
-  if(/호텔\s*조식|호텔식|기내식|현지식|한\s*식|고려인식당|밀박스|라그마|샤슬릭/i.test(line)) return true;
+  if(/호텔\s*조식|호텔식|기내식|현지식|한\s*식|고려인식당|밀박스|라그마|샤슬릭|중식\s*후|석식\s*후/i.test(line)) return true;
+  // 진행 문장 제거
   if(/호텔\s*투숙|호텔\s*휴식|가이드\s*미팅|전용차량|차량|이동\s*\(|소요\s*예정|자유\s*시간|기념\s*촬영/i.test(line)) return true;
+  // 설명문 제거
   if(/해발|국립공원|위치한|배경으로|물색|뽐냅니다|트레킹\s*합니다|루트|안전을\s*위해/i.test(line)) return true;
-  if(/침식|풍화|작용|만들어진|거대한|아름다운|경치\s*감상/i.test(line)) return true;
+  if(/침식|풍화|작용|만들어진|거대한|아름다운|경치\s*감상|상징이라|놀라운\s*발견/i.test(line)) return true;
   if(/상기\s*일정|현지\s*사정|변경될\s*수/i.test(line)) return true;
+  // 시간/항공편/단독 코드 제거
   if(/^\d{1,2}:\d{2}$/.test(line)) return true;
   if(/^[A-Z]{2}\s*\d{2,4}$/.test(line)) return true;
   if(/^전\s*일$/.test(line)) return true;
+  // 너무 일반적인 지역명 단독 표시 제거 (지역 칸의 '알마티/콜사이/...')
+  if(/^(알마티|콜사이|카인디|차른)$/.test(line)) return true;
   return false;
 }
-function compactDayText(raw){
+
+function extractPlacesFromDayText(raw){
   const text = String(raw || '');
-  const lines = text
+  const cleanedLines = text
     .split(/\n+/)
     .map(x => x.trim())
     .filter(Boolean)
     .filter(x => !isNoiseScheduleLine(x));
-  const places = [];
-  for(const line of lines){
-    const place = normalizePlaceName(line);
-    if(place && !places.includes(place)){
-      places.push(place);
+  const cleanedText = cleanedLines.join('\n');
+  const result = [];
+  for(const rule of PLACE_RULES){
+    const matched = rule.patterns.some(re => re.test(cleanedText));
+    if(matched && !result.includes(rule.canonical)){
+      result.push(rule.canonical);
     }
   }
-  if(!places.length){
-    const fallback = lines
-      .map(x => x
-        .replace(/호텔\s*조식\s*후?/g, '')
-        .replace(/중식\s*후?/g, '')
-        .replace(/석식\s*후?/g, '')
-        .replace(/관광|방문|체험|하이킹|트레킹|이동/g, '')
-        .trim()
-      )
-      .filter(Boolean)
-      .slice(0, 4);
-    return fallback.map(x => '- ' + x).join('\n');
-  }
+  return result;
+}
+
+function compactDayText(raw){
+  const places = extractPlacesFromDayText(raw);
   return places.map(x => '- ' + x).join('\n');
 }
 
@@ -4542,18 +4513,10 @@ function normalizeDetails(details){
     return details.split(/\n+/).map(x => x.trim()).filter(Boolean);
   }
   if(typeof details === 'object'){
-    if(Array.isArray(details.items)){
-      return details.items.map(x => String(x || '').trim()).filter(Boolean);
-    }
-    if(typeof details.content === 'string'){
-      return details.content.split(/\n+/).map(x => x.trim()).filter(Boolean);
-    }
-    if(typeof details.text === 'string'){
-      return details.text.split(/\n+/).map(x => x.trim()).filter(Boolean);
-    }
-    if(typeof details.schedule === 'string'){
-      return details.schedule.split(/\n+/).map(x => x.trim()).filter(Boolean);
-    }
+    if(Array.isArray(details.items)) return details.items.map(x => String(x || '').trim()).filter(Boolean);
+    if(typeof details.content === 'string') return details.content.split(/\n+/).map(x => x.trim()).filter(Boolean);
+    if(typeof details.text === 'string') return details.text.split(/\n+/).map(x => x.trim()).filter(Boolean);
+    if(typeof details.schedule === 'string') return details.schedule.split(/\n+/).map(x => x.trim()).filter(Boolean);
     return Object.values(details)
       .flatMap(x => {
         if(Array.isArray(x)) return x;
@@ -4566,41 +4529,28 @@ function normalizeDetails(details){
   return [String(details).trim()].filter(Boolean);
 }
 
-// 옛 저장 데이터에서 details가 문자열/객체로 굳어져 있던 팀들을 자동 보정
+// 옛 저장 데이터를 PLACE_RULES 기반 결과로 다시 보정
 function repairScheduleDetailsInDB(){
   if(!db || !Array.isArray(db.teams)) return;
   let changed = false;
   db.teams.forEach(team => {
     if(!team) return;
-    const dayContainers = [
-      team.scheduleDays, team.days, team.dailySchedule, team.itineraryDays
-    ];
-    dayContainers.forEach(container => {
+    const containers = [team.scheduleDays, team.days, team.dailySchedule, team.itineraryDays];
+    containers.forEach(container => {
       if(!Array.isArray(container)) return;
       container.forEach(day => {
         if(!day) return;
-        if(day.rawContent && !day.content){
-          const compact = compactDayText(day.rawContent);
-          day.content = compact;
-          day.details = normalizeDetails(compact);
-          changed = true;
-          return;
-        }
-        if(day.content && !day.details){
-          day.details = normalizeDetails(day.content);
-          changed = true;
-          return;
-        }
-        if(day.details && !Array.isArray(day.details)){
-          day.details = normalizeDetails(day.details);
-          changed = true;
-        }
+        const source = day.rawContent || day.originalText || day.content || day.details || '';
+        const compact = compactDayText(source);
+        day.content = compact;
+        day.details = normalizeDetails(compact);
+        changed = true;
       });
     });
   });
   if(changed){
     try{ saveDB(); }catch(e){}
-    console.log('기존 일정 details 자료형 보정 완료');
+    console.log('일정표 방문지 요약 데이터 보정 완료');
   }
 }
 
