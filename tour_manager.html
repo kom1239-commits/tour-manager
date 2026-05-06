@@ -3422,34 +3422,23 @@ function renderTeamDetail(t){
             const tagChips = point_tags.length
               ? `<div style="margin:4px 0 6px">${point_tags.map(p=>`<span style="display:inline-block;background:${/침블락|침불락/.test(p)?'#fbbf24':'#bae6fd'};color:#0f172a;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;margin-right:4px">${/침블락|침불락/.test(p)?'⭐ ':'📍 '}${escapeHtml(p)}</span>`).join('')}</div>`
               : '';
-            return `<div style="margin-bottom:10px;padding:10px 12px;border-left:4px solid ${t.color||'#3b82f6'};background:var(--panel);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
-              <div style="font-weight:700;font-size:14px;margin-bottom:4px">${monthDay(d.date)} (${d.dow}) · <span class="muted" style="font-weight:400;font-size:13px">${d.day_label}</span>${star}</div>
-              ${tagChips}
-              ${body}
+            return `<div style="display:flex;gap:10px;margin-bottom:8px;padding:10px;border-left:4px solid ${t.color||'#3b82f6'};background:var(--panel);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
+              <div style="flex:0 0 64px;text-align:center;border-right:1px dashed var(--line);padding-right:8px">
+                <div style="font-size:18px;font-weight:800;color:${t.color||'#3b82f6'};line-height:1.1">${d.day_number}일</div>
+                <div class="muted" style="font-size:10px;margin-top:2px">${monthDay(d.date)}</div>
+                <div class="muted" style="font-size:10px">(${d.dow})</div>
+                ${star?`<div style="margin-top:4px">${star}</div>`:''}
+              </div>
+              <div style="flex:1;min-width:0">
+                ${tagChips}
+                ${body}
+              </div>
             </div>`;
           }).join('')}
           ${allEmpty && (t.visitPlaces||[]).length ? `<div style="margin-top:8px;padding:10px 12px;background:#fef3c7;border:1px dashed #f59e0b;border-radius:6px"><div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">📍 방문 활동 (날짜 미배정)</div>${(t.visitPlaces||[]).filter(p=>!isMetaItineraryLine(p)).map(p=>`<div style="font-size:13px;line-height:1.5">• ${escapeHtml(p)}</div>`).join('')}</div>`:''}
           </div></div>`;
         }
-        if((t.visitPlaces||[]).length){
-          html += `<div class="detail-row"><div class="k">방문지 태그</div><div class="v">${(t.visitPlaces||[]).map(p=>`<span class="tag">${escapeHtml(p)}</span>`).join(' ')}</div></div>`;
-        }
-        const ci = parseCommonInfoStructured(t) || {};
-        const includes = ci.포함사항||[], excludes = ci.불포함||[], hotels = ci.숙박||[], notes = ci.비고||[], etc = ci.기타||[];
-        const hasAny = ci.단체명 || ci.현지가이드 || includes.length || excludes.length || hotels.length || notes.length || etc.length;
-        if(hasAny){
-          const row = (label, content) => content ? `<div style="margin-bottom:6px"><span style="font-size:11px;font-weight:700;color:var(--accent)">${label}</span><div style="font-size:12px;line-height:1.5;margin-top:2px">${content}</div></div>` : '';
-          const list = arr => (arr||[]).length ? arr.map(s=>`<div>• ${escapeHtml(s)}</div>`).join('') : '';
-          html += `<div class="detail-row"><div class="k">📋 행사 공통 정보</div><div class="v">
-            ${row('단체명', ci.단체명?escapeHtml(ci.단체명):'')}
-            ${row('현지가이드', ci.현지가이드?escapeHtml(ci.현지가이드):'')}
-            ${row('포함사항', list(includes))}
-            ${row('불포함', list(excludes))}
-            ${row('숙박', list(hotels))}
-            ${row('비고', list(notes))}
-            ${etc.length?row('기타', list(etc)):''}
-          </div></div>`;
-        }
+        // (방문지 태그 / 행사 공통 정보 섹션은 일별 일정만 보여달라는 요청에 따라 제거)
         const md = formatScheduleMarkdown(t);
         if(md && md.length > 30){
           const mdId = 'md_'+(t.id||'x');
