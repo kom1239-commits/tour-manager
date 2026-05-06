@@ -3401,17 +3401,16 @@ function dayCellHtml(d,other,todayStr,filt){
   const evtHtml = events.slice(0,4).map(t=>{
     const warn = (t.conflicts||[]).filter(c=>c.ignored).length ? '<span class="warn">⚠️</span>' : '';
     const highlight = window._highlightTeamId === t.id ? 'box-shadow:0 0 0 2px #fff,0 0 12px rgba(56,189,248,0.8);animation:pulse 1.5s ease-in-out infinite;' : '';
-    // 침블락 가는 날만 팀 chip 색깔을 강조 색(#fbbf24 노란색)으로 덮어쓰기.
-    // 별도 🎿 파란 칩은 만들지 않음 — 한 칸만 사용해서 같은 날에 팀이 여러 개
-    // 겹쳐도 구분이 안 가는 문제를 피함.
+    // 침블락 가는 날: 팀 chip 색은 그대로 두고 별표만 대비 강한 색으로 덧붙임.
+    // 같은 팀의 다른 날들과 chip 색이 동일하게 유지되어 동일 팀임을 알 수 있고,
+    // 별표(★)는 흰 동그라미 + 빨간 글씨로 어떤 chip 색 위에서도 또렷하게 보임.
     const chimbDates = (typeof detectChimbulakDates === 'function') ? new Set(detectChimbulakDates(t)) : new Set();
     const isChimbDay = chimbDates.has(ds);
-    const bg = isChimbDay ? '#fbbf24' : (t.color||'#3b82f6');
-    const fg = isChimbDay ? '#7c2d12' : '#fff';
-    const ring = isChimbDay ? 'outline:2px solid #d97706;outline-offset:-1px;font-weight:800;' : '';
-    const star = isChimbDay ? '⭐ ' : '';
+    const star = isChimbDay
+      ? '<span style="display:inline-block;background:#fff;color:#dc2626;font-weight:900;border-radius:50%;width:14px;height:14px;line-height:14px;text-align:center;font-size:10px;margin-right:3px;box-shadow:0 0 0 1px #dc2626">★</span>'
+      : '';
     const tip = `${escapeHtml(t.name)} · ${escapeHtml(clientName(t.clientId))}${isChimbDay?' · ⭐ 침블락 방문일':''}`;
-    return `<span class="cal-evt" style="background:${bg};color:${fg};${ring}${highlight}" data-team="${t.id}" title="${tip}">${star}${escapeHtml(t.name)}${warn}</span>`;
+    return `<span class="cal-evt" style="background:${t.color||'#3b82f6'};${highlight}" data-team="${t.id}" title="${tip}">${star}${escapeHtml(t.name)}${warn}</span>`;
   }).join('');
   const more = events.length>4?`<div style="font-size:10px;color:var(--muted)">+${events.length-4}</div>`:'';
   return `<div class="cal-day ${other?'other':''} ${isToday?'today':''}" data-date="${ds}"><div class="cal-num">${dayNum}</div>${evtHtml}${more}</div>`;
