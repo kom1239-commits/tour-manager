@@ -4378,26 +4378,23 @@ out.daily_schedule.push({
 function formatScheduleMarkdown(t){
   const s = parseScheduleStructured(t);
   if(!s) return '';
-  const c = s.common_info;
+
   const lines = [];
-  lines.push('■ 행사 공통 정보');
-  lines.push(`- 단체명: ${c.title||''}`);
-  lines.push(`- 현지가이드: ${c.guide||''}`);
-  lines.push(`- 포함사항: ${c.includes.join(', ')}`);
-  lines.push(`- 불포함사항: ${c.excludes.join(', ')}`);
-  lines.push(`- 숙박: ${c.hotels.join(', ')}`);
-  lines.push(`- 비고: ${c.notes.join(', ')}`);
-  lines.push('');
-  lines.push('■ 일자별 일정');
+  lines.push('■ 일별 일정');
+
   for(const d of s.daily_schedule){
     lines.push('');
     lines.push(`## ${d.day_label}`);
-    if(d.details.length){
-      for(const x of d.details) lines.push(`- ${x}`);
+
+    if(d.details && d.details.length){
+      for(const x of d.details){
+        lines.push(`- ${x}`);
+      }
     } else {
-      lines.push('- (일정표에서 인식된 내용 없음)');
+      lines.push('- 일정표에서 인식된 내용 없음');
     }
   }
+
   return lines.join('\n');
 }
 function copyScheduleMarkdown(teamId){
