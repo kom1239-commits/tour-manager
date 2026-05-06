@@ -1812,11 +1812,24 @@ function prefillImportForm(){
   if(_detected.dates.length >= 1){
     const arrival = _detected.dates[0];
 
+    // 마지막 날짜가 '다음날 인천 도착' 같은 귀국 후속 정보라면 제외
+    let cleanDates = _detected.dates.slice();
+    if(cleanDates.length >= 2 && _importedText){
+      const last = cleanDates[cleanDates.length - 1];
+      const idx = _importedText.indexOf(last);
+      if(idx >= 0){
+        const around = _importedText.slice(Math.max(0, idx - 40), idx + 40);
+        if(/(다음\s*날|익일|이튿날).*?(인천|부산)|(?:인천|부산)\s*(?:국제\s*)?공항\s*(?:도착|입국)|인천\s*도착|부산\s*도착/.test(around)){
+          cleanDates = cleanDates.slice(0, -1);
+        }
+      }
+    }
+
     // 날짜가 여러 개 잡히면 마지막 날짜 사용
     // 날짜가 하나만 잡히면 "제N일" 기준으로 출국일 자동 계산
-    let departure = _detected.dates[_detected.dates.length - 1];
+    let departure = cleanDates[cleanDates.length - 1];
 
-    if(_detected.dates.length === 1){
+    if(cleanDates.length === 1){
       departure = guessDepartureByDayCount(arrival, _importedText || '');
     }
 
@@ -4455,6 +4468,9 @@ function isDefinitelyNoiseLine(line){
   if(/^[A-Z]{2}\s*\d{2,4}$/.test(line)) return true;
   if(/^전\s*일$/.test(line)) return true;
   if(/^전용차량$/.test(line)) return true;
+  // 귀국·도착 후속 줄 제거 (마지막 알마티 공항 출발 이후 다음날 인천/부산 도착 등)
+  if(/(다음\s*날|익일|이튿날).*?(인천|부산).*?공항/.test(line)) return true;
+  if(/(인천|부산)\s*(국제\s*)?공항\s*(도착|입국)/.test(line)) return true;
   // 긴 설명문 제거 (쉼표/콜론이 없는 단일 문장만)
   if(line.length > 45 && !/[,:，、]/.test(line)){
     if(/상징이라|고고학적으로|발견이라|위치|국립공원|해발|배경|물색|뽐냅니다|침식|풍화|작용|만들어진|아름다운|경치/.test(line)){
@@ -4592,8 +4608,9 @@ function normalizeDuplicatePlaceName(s){
   if(/루나/.test(s)) return '루나 협곡';
   if(/실로암/.test(s)) return '실로암 온천';
   if(/알마티\s*공항|^공항$/.test(s)) return '알마티 공항';
-  if(/부산\s*국제\s*공항|부산\s*공항/.test(s)) return '부산공항';
-  if(/^인천(?:공항)?$|인천\s*국제\s*공항|인천\s*공항/.test(s)) return '인천공항';
+  // 인천/부산 공항은 귀국·출발 정보일 뿐 실제 방문지가 아니므로 표시에서 제외
+  if(/부산\s*국제\s*공항|부산\s*공항/.test(s)) return '';
+  if(/^인천(?:공항)?$|인천\s*국제\s*공항|인천\s*공항|인천\s*도착/.test(s)) return '';
   if(/알마티\s*시내|시내\s*관광/.test(s)) return '알마티 시내관광';
   return s;
 }
