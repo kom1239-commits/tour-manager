@@ -4227,9 +4227,9 @@ function htmlScheduleToText(html){
 // team detail can render it as its own section.
 function parseCommonInfo(t){
   const text = String(t && t.originalText || '');
-  const idx = text.indexOf('━━━━━ 공통정보 ━━━━━');
-  if(idx < 0) return [];
-  return text.slice(idx + '━━━━━ 공통정보 ━━━━━'.length)
+  const match = text.match(/━━━━━ 공통정보 ━━━━━|■ 행사 공통 정보/);
+  if(!match) return [];
+  return text.slice(match.index + match[0].length)
     .split('\n').map(s=>s.trim()).filter(Boolean);
 }
 
@@ -4374,9 +4374,9 @@ function parseScheduleByDay(t){
   // Cut at the '공통정보' sentinel so trip-meta rows below never get attributed
   // to a day even when no obvious section break exists.
   let text = String(t.originalText||'') + (t.originalText?'\n':'') + String(t.notes||'');
-  const cutIdx = text.indexOf('━━━━━ 공통정보 ━━━━━');
-  if(cutIdx >= 0) text = text.slice(0, cutIdx);
-  if(!text.trim()) return days;
+  let text = String(t.originalText||'') + (t.originalText?'\n':'') + String(t.notes||'');
+  const match = text.match(/━━━━━ 공통정보 ━━━━━|■ 행사 공통 정보/);
+  if(match) text = text.slice(0, match.index);
   const ord={'첫':1,'둘':2,'두':2,'셋':3,'세':3,'넷':4,'네':4,'다섯':5,'여섯':6,'일곱':7,'여덟':8,'아홉':9,'열':10};
   const arrYear = arrival.getFullYear();
   const markers = [];
@@ -4501,8 +4501,7 @@ function detectChimbulakDates(t){
       // 등반/등산/스키/보드/메데우, or 'cable'/'gondola'. Generic verbs like
       // 입장/이동/관광 are too noisy because they appear in inclusion lists.
       const isChimbActivity = !isMetaLine
-        && /침블락|침불락|chimbulak|shymbulak/i.test(line)
-        && /케이블카|곤돌라|리프트|3200|2단|3단|등반|등산|스키|보드|메데우|cable|gondola/i.test(line);
+          && /침블락|침불락|chimbulak|shymbulak/i.test(line);
       if(isChimbActivity && curDay >= 1){
         const d = new Date(t.arrivalDate);
         d.setDate(d.getDate()+curDay-1);
