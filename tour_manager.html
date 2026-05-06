@@ -4459,6 +4459,8 @@ function cleanPlaceCandidate(text){
     .replace(/[()（）][^()（）]*[)）]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+  // ★ htmlScheduleToText가 prefix로 붙인 '제N일 '을 제거 ('제3일 콜사이' → '콜사이')
+  s = s.replace(/^제\s*\d{1,2}\s*일\s*/g, '').trim();
   // 앞쪽 진행어 제거
   s = s
     .replace(/^호텔\s*조식\s*후\s*가이드\s*미팅\s*/g, '')
@@ -4527,11 +4529,18 @@ function looksLikePlaceCandidate(s){
     '호텔','조식','중식','석식','호텔 조식','호텔 식','호텔식',
     '가이드 미팅','전용차량','차량',
     '자유 시간','자유시간','기념 촬영','기념촬영','휴식','관광','방문','관람',
-    '알마티','콜사이','카인디','차른'
+    '알마티','콜사이','카인디','차른',
+    // htmlScheduleToText가 만든 잔여 단편들
+    '전 일','전일','전','일','이슥','이식',
+    '휴게 및 시장','휴게','및 시장','시장'
   ];
   if(badExact.includes(s)) return false;
   // 활동 묘사 거부 (장소가 아닌 행위/장비/설비)
   if(/케이블카|탑승|기념\s*촬영|소요\s*예정|^\d+\s*단|3200|2단|3단/.test(s)) return false;
+  // 의미 없는 부사구/연결구 거부
+  if(/^(휴게|및\s)|^후\s|및\s*시장$/.test(s)) return false;
+  // '제N일' 접두사가 또 남아있으면 거부 (이중 안전장치)
+  if(/^제\s*\d+\s*일/.test(s)) return false;
   // 설명문 성격 제거
   if(/상징이라|고고학적으로|발견이라|위치|국립공원|해발|사람들이|가족|연인|많이\s*찾는/.test(s)) return false;
   // 장소로 볼 만한 키워드
@@ -4553,13 +4562,16 @@ function normalizeDuplicatePlaceName(s){
   if(/카인디/.test(s) && /호수/.test(s)) return '카인디 호수';
   if(/^카인디$/.test(s)) return '';
   if(/차른/.test(s)) return '차른 캐년';
-  if(/이식/.test(s) && /호수/.test(s)) return '이식 호수';
+  if(/이식|이슥/.test(s) && /호수/.test(s)) return '이식 호수';
+  if(/^(이식|이슥)$/.test(s)) return '';
   if(/빅\s*알마티|빅알마티/.test(s)) return '빅알마티 호수';
   if(/아유사이|아유\s*사이/.test(s)) return '아유사이 협곡';
   if(/콕토베/.test(s)) return '콕토베 전망대';
   if(/아르바트/.test(s)) return '아르바트 거리';
-  if(/판필로브/.test(s)) return '판필로브 28인 추모공원';
+  if(/판필로브|판필로프/.test(s)) return '판필로브 28인 추모공원';
   if(/젠코바|첸코바/.test(s)) return '젠코바 성당';
+  if(/신장\s*위그르|위그르\s*마을/.test(s)) return '신장 위그르 마을';
+  if(/질뇨니|질노니/.test(s)) return '질뇨니 바자르';
   if(/황금\s*인간|황금인간/.test(s)) return '황금 인간 박물관';
   if(/오페라\s*하우스/.test(s)) return '오페라 하우스';
   if(/데이스\s*텐|데이스텐/.test(s)) return '데이스 텐 공원';
@@ -4569,6 +4581,9 @@ function normalizeDuplicatePlaceName(s){
   if(/루나/.test(s)) return '루나 협곡';
   if(/실로암/.test(s)) return '실로암 온천';
   if(/알마티\s*공항|^공항$/.test(s)) return '알마티 공항';
+  if(/부산\s*국제\s*공항|부산\s*공항/.test(s)) return '부산공항';
+  if(/^인천(?:공항)?$|인천\s*국제\s*공항|인천\s*공항/.test(s)) return '인천공항';
+  if(/알마티\s*시내|시내\s*관광/.test(s)) return '알마티 시내관광';
   return s;
 }
 
