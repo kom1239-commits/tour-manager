@@ -3196,30 +3196,50 @@ function showClientDetail(clientId){
   document.getElementById('clientDetailPanel').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-// 캘린더 필터 — 특정 의뢰인의 팀만 표시
+// 캘린더 필터 — 특정 의뢰인 / 가이드 / 호텔의 팀만 표시
 let _calendarFilterClientId = null;
-function viewClientOnCalendar(clientId){
-  _calendarFilterClientId = clientId;
-  document.getElementById('clientDetailPanel').innerHTML = '';
-  // 캘린더 탭으로 이동 → renderCalendar가 자동 호출되며 필터 적용됨
-  const tab = document.querySelector('.tab[data-tab="calendar"]');
-  if(tab) tab.click();
-  // 첫 팀의 도착월로 캘린더 점프 (있으면)
-  const firstTeam = db.teams.filter(t=>t.clientId===clientId&&t.arrivalDate).sort((a,b)=>(a.arrivalDate||'').localeCompare(b.arrivalDate||''))[0];
-  if(firstTeam && firstTeam.arrivalDate){
+let _calendarFilterGuideId  = null;
+let _calendarFilterHotelId  = null;
+function _clearAllCalendarFilters(){
+  _calendarFilterClientId = null;
+  _calendarFilterGuideId  = null;
+  _calendarFilterHotelId  = null;
+}
+function _jumpCalendarToTeam(teams){
+  if(!teams || !teams.length) return;
+  const firstTeam = teams.slice().sort((a,b)=>(a.arrivalDate||'').localeCompare(b.arrivalDate||''))[0];
+  if(firstTeam && firstTeam.arrivalDate && typeof calCursor !== 'undefined'){
     const d = new Date(firstTeam.arrivalDate);
-    if(typeof calCursor !== 'undefined'){
-      calCursor.setFullYear(d.getFullYear());
-      calCursor.setMonth(d.getMonth());
-      calCursor.setDate(1);
-      try{ renderCalendar(); }catch(e){}
-    }
+    calCursor.setFullYear(d.getFullYear());
+    calCursor.setMonth(d.getMonth());
+    calCursor.setDate(1);
   }
 }
-function clearClientFilter(){
-  _calendarFilterClientId = null;
+function viewClientOnCalendar(clientId){
+  _clearAllCalendarFilters();
+  _calendarFilterClientId = clientId;
+  const panel = document.getElementById('clientDetailPanel'); if(panel) panel.innerHTML = '';
+  _jumpCalendarToTeam(db.teams.filter(t=>t.clientId===clientId&&t.arrivalDate));
+  const tab = document.querySelector('.tab[data-tab="calendar"]'); if(tab) tab.click();
   try{ renderCalendar(); }catch(e){}
 }
+function viewGuideOnCalendar(guideId){
+  _clearAllCalendarFilters();
+  _calendarFilterGuideId = guideId;
+  const panel = document.getElementById('guideDetailPanel'); if(panel) panel.innerHTML = '';
+  _jumpCalendarToTeam(db.teams.filter(t=>(t.guideAssignments||[]).some(g=>g.guideId===guideId) && t.arrivalDate));
+  const tab = document.querySelector('.tab[data-tab="calendar"]'); if(tab) tab.click();
+  try{ renderCalendar(); }catch(e){}
+}
+function viewHotelOnCalendar(hotelId){
+  _clearAllCalendarFilters();
+  _calendarFilterHotelId = hotelId;
+  const panel = document.getElementById('hotelDetailPanel'); if(panel) panel.innerHTML = '';
+  _jumpCalendarToTeam(db.teams.filter(t=>(t.hotelStays||[]).some(s=>s.hotelId===hotelId) && t.arrivalDate));
+  const tab = document.querySelector('.tab[data-tab="calendar"]'); if(tab) tab.click();
+  try{ renderCalendar(); }catch(e){}
+}
+function clearClientFilter(){ _clearAllCalendarFilters(); try{ renderCalendar(); }catch(e){} }
 
 function showHotelDetail(hotelId){
   const h = db.hotels.find(x=>x.id===hotelId);
@@ -3242,7 +3262,10 @@ function showHotelDetail(hotelId){
         ${h.contact?`<div class="muted" style="font-size:12px">📧 ${escapeHtml(h.contact)}</div>`:''}
         ${h.notes?`<div style="font-size:12px;margin-top:6px;padding:6px 10px;background:var(--panel2);border-radius:4px">${escapeHtml(h.notes)}</div>`:''}
       </div>
-      <button class="ghost" onclick="document.getElementById('hotelDetailPanel').innerHTML=''">닫기 ✕</button>
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        <button class="primary" onclick="viewHotelOnCalendar('${h.id}')">📅 캘린더에서 보기</button>
+        <button class="ghost" onclick="document.getElementById('hotelDetailPanel').innerHTML=''">닫기 ✕</button>
+      </div>
     </div>
     <div class="stats" style="margin-top:14px">
       <div class="stat"><div class="lbl">이용 팀수</div><div class="val">${teams.length}팀</div></div>
@@ -3279,7 +3302,10 @@ function showGuideDetail(guideId){
         <div class="muted" style="font-size:12px">💰 일당 기준: ${fmtMoney(g.dailyRate,g.currency)}</div>
         ${g.notes?`<div style="font-size:12px;margin-top:6px;padding:6px 10px;background:var(--panel2);border-radius:4px">${escapeHtml(g.notes)}</div>`:''}
       </div>
-      <button class="ghost" onclick="document.getElementById('guideDetailPanel').innerHTML=''">닫기 ✕</button>
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        <button class="primary" onclick="viewGuideOnCalendar('${g.id}')">📅 캘린더에서 보기</button>
+        <button class="ghost" onclick="document.getElementById('guideDetailPanel').innerHTML=''">닫기 ✕</button>
+      </div>
     </div>
     <div class="stats" style="margin-top:14px">
       <div class="stat"><div class="lbl">담당 팀수</div><div class="val">${teams.length}팀</div></div>
@@ -3305,15 +3331,27 @@ function renderCalendar(){
   _resetTeamPlaceDatesCache();
   const yr = calCursor.getFullYear(), mo = calCursor.getMonth();
   document.getElementById('calTitle').textContent = `${yr}년 ${mo+1}월`;
-  // 의뢰인 필터 배너
+  // 의뢰인 / 가이드 / 호텔 필터 배너
   const banner = document.getElementById('calFilterBanner');
   if(banner){
+    let label = '', icon = '';
     if(_calendarFilterClientId){
       const c = db.clients.find(x=>x.id===_calendarFilterClientId);
-      const name = c ? c.name : '의뢰인';
+      label = `${escapeHtml(c?c.name:'의뢰인')} 의뢰인`;
+      icon = '💼';
+    } else if(_calendarFilterGuideId){
+      const g = db.guides.find(x=>x.id===_calendarFilterGuideId);
+      label = `${escapeHtml(g?g.name:'가이드')} 가이드`;
+      icon = '🧭';
+    } else if(_calendarFilterHotelId){
+      const h = db.hotels.find(x=>x.id===_calendarFilterHotelId);
+      label = `${escapeHtml(h?h.name:'호텔')} 호텔`;
+      icon = '🏨';
+    }
+    if(label){
       banner.style.display = '';
       banner.innerHTML = `<div style="background:#dbeafe;border:1px solid #3b82f6;color:#1e3a8a;padding:8px 12px;border-radius:6px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <span style="font-size:13px">📌 <strong>${escapeHtml(name)}</strong> 의뢰인의 일정만 표시 중</span>
+        <span style="font-size:13px">${icon} <strong>${label}</strong>의 일정만 표시 중</span>
         <button class="ghost" style="background:#fff" onclick="clearClientFilter()">전체 보기 ✕</button>
       </div>`;
     } else {
@@ -3424,6 +3462,8 @@ function teamHasPlacesOnDate(t, ds){
 function teamsOnDate(ds){
   return db.teams.filter(t=>{
     if(_calendarFilterClientId && t.clientId !== _calendarFilterClientId) return false;
+    if(_calendarFilterGuideId && !((t.guideAssignments||[]).some(g=>g.guideId===_calendarFilterGuideId))) return false;
+    if(_calendarFilterHotelId && !((t.hotelStays||[]).some(s=>s.hotelId===_calendarFilterHotelId))) return false;
     if(t.arrivalDate && t.departureDate){
       if(ds>=t.arrivalDate && ds<=t.departureDate){
         return teamHasPlacesOnDate(t, ds);
