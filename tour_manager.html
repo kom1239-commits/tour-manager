@@ -1690,7 +1690,41 @@ function analyzeImportedText(text){
   renderDetected();
   prefillImportForm();
 }
+// 원문에서 "제1일 ~ 제6일" 같은 일차 개수를 찾는다
+function detectDayCountFromText(text){
+  const nums = [];
+  let m;
 
+  const re1 = /제\s*(\d{1,2})\s*일/g;
+  while((m = re1.exec(text))){
+    nums.push(Number(m[1]));
+  }
+
+  const re2 = /(\d{1,2})\s*일\s*[차째]/g;
+  while((m = re2.exec(text))){
+    nums.push(Number(m[1]));
+  }
+
+  const re3 = /(?:Day|DAY|day)\s*(\d{1,2})/g;
+  while((m = re3.exec(text))){
+    nums.push(Number(m[1]));
+  }
+
+  return nums.length ? Math.max(...nums) : 0;
+}
+
+// 날짜 하나만 잡힌 경우: 일차 개수로 출국일 자동 계산
+function guessDepartureByDayCount(arrivalDate, text){
+  if(!arrivalDate) return '';
+
+  const dayCount = detectDayCountFromText(text);
+  if(dayCount <= 1) return arrivalDate;
+
+  const d = new Date(arrivalDate);
+  d.setDate(d.getDate() + dayCount - 1);
+
+  return localISO(d);
+}
 function detectDates(text){
   const found = new Map();
   const yr = new Date().getFullYear();
@@ -1775,15 +1809,27 @@ function setImportRange(d){
 }
 
 function prefillImportForm(){
-  if(_detected.dates.length>=1){
-    document.getElementById('imp_arrival').value = _detected.dates[0];
-    document.getElementById('imp_departure').value = _detected.dates[_detected.dates.length-1];
+  if(_detected.dates.length >= 1){
+    const arrival = _detected.dates[0];
+
+    // 날짜가 여러 개 잡히면 마지막 날짜 사용
+    // 날짜가 하나만 잡히면 "제N일" 기준으로 출국일 자동 계산
+    let departure = _detected.dates[_detected.dates.length - 1];
+
+    if(_detected.dates.length === 1){
+      departure = guessDepartureByDayCount(arrival, _importedText || '');
+    }
+
+    document.getElementById('imp_arrival').value = arrival;
+    document.getElementById('imp_departure').value = departure;
   }
-  if(_detected.hotels.length>=1){
+
+  if(_detected.hotels.length >= 1){
     document.getElementById('imp_hotel').value = _detected.hotels[0].id;
   }
+
   document.getElementById('imp_places').value = _detected.places.join(', ');
-  // suggest team name from filename
+
   if(_importedFile && !document.getElementById('imp_name').value){
     const base = _importedFile.name.replace(/\.[^.]+$/,'');
     document.getElementById('imp_name').value = base;
@@ -1863,8 +1909,13 @@ async function oneClickRegister(){
     alert('자동 인식된 날짜가 없습니다. 위 [✏️ 검토 후 저장] 영역에서 도착일을 직접 입력해 주세요.');
     return;
   }
-  const arrival = _detected.dates[0] || document.getElementById('imp_arrival').value;
-  const departure = _detected.dates[_detected.dates.length-1] || arrival;
+ const arrival = _detected.dates[0] || document.getElementById('imp_arrival').value;
+
+let departure = _detected.dates[_detected.dates.length - 1] || document.getElementById('imp_departure').value || arrival;
+
+if(departure === arrival){
+  departure = guessDepartureByDayCount(arrival, _importedText || '');
+}
   const hotelId = _detected.hotels[0]?.id || '';
   const places = _detected.places.join(', ');
   const baseName = (_importedFile?.name || '새 팀').replace(/\.[^.]+$/,'');
@@ -4274,6 +4325,26 @@ function extractPointTags(detailLines, max=2){
 }
 
 // API-style structured parse — { common_info, daily_schedule[] }
+ function compactDayText(rawLines){
+  const priorityWords = /침블락|빅알마티|아유사이|차른|캐년|카인디|콜사이|실로암|콕토베|첸코바|판필로브|아르바트|바자르|시장|온천|트레킹|하이킹|케이블카|오프로드|공항|출발|도착/;
+
+  const lines = Array.isArray(rawLines)
+    ? rawLines
+    : String(rawLines || '').split(/\n+/);
+
+  const cleaned = lines
+    .map(x => String(x || '').trim())
+    .filter(Boolean)
+    .filter(x => !/^(조|중|석)\s*:/.test(x))
+    .filter(x => !/^HOTEL\s*:/i.test(x))
+    .filter(x => !/호텔\s*조식|호텔\s*투숙|휴식|가이드\s*미팅/.test(x))
+    .filter(x => !/^전\s*일$/.test(x));
+
+  const priority = cleaned.filter(x => priorityWords.test(x));
+  const normal = cleaned.filter(x => !priorityWords.test(x));
+
+  return [...priority, ...normal].slice(0, 6);
+}
 function parseScheduleStructured(t){
   const ci = parseCommonInfoStructured(t);
   const days = parseScheduleByDay(t) || [];
@@ -4296,14 +4367,16 @@ function parseScheduleStructured(t){
       if(isMetaItineraryLine(l)) continue;
       if(!details.length || details[details.length-1] !== l) details.push(l);
     }
-    out.daily_schedule.push({
-      day_number: d.idx,
-      day_label: `제${d.idx}일`,
-      date: d.date,
-      dow: d.dow,
-      point_tags: extractPointTags(details, 2),
-      details
-    });
+    const compactDetails = compactDayText(details);
+
+out.daily_schedule.push({
+  day_number: d.idx,
+  day_label: `제${d.idx}일`,
+  date: d.date,
+  dow: d.dow,
+  point_tags: extractPointTags(compactDetails, 2),
+  details: compactDetails
+});
   }
   return out;
 }
