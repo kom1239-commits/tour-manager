@@ -4195,8 +4195,8 @@ function htmlScheduleToText(html){
           }
         }
         
-        // ★ 핵심 해결 부분: 날짜가 나오거나 세부일정 표 헤더가 나오면 공통정보 빨아들이기를 멈춥니다!
-        const isScheduleHeader = cells.some(c => /^(날짜|일자|지\s*역|교통편|세\s*부\s*일\s*정|식\s*사)$/.test(c.replace(/\s/g,'')));
+        // ★ 핵심 탈출 스위치: 표 머리글(날짜, 세부일정)이나 '제1일'을 발견하면 공통정보 빨아들이기를 즉시 멈춥니다!
+        const isScheduleHeader = cells.some(c => /^(날짜|일자|지역|교통편|세부일정|식사)$/.test(c.replace(/\s/g,'')));
         if(dayIdx >= 0 || isScheduleHeader){
             inCommon = false;
         } else if(!inCommon && cells.some(c => stopRe.test(c))){
