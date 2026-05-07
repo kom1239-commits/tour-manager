@@ -1799,9 +1799,24 @@ function detectPlaces(text){
 
 function renderDetected(){
   const dEl = document.getElementById('detectedDates');
-  dEl.innerHTML = _detected.dates.length
+  const ar = document.getElementById('imp_arrival') ? document.getElementById('imp_arrival').value : '';
+  const dep = document.getElementById('imp_departure') ? document.getElementById('imp_departure').value : '';
+  const chipHtml = _detected.dates.length
     ? _detected.dates.map(d=>`<span class="tag" style="cursor:pointer;background:var(--accent);color:#fff" onclick="setImportRange('${d}')">${d}</span>`).join(' ')
-    : '<span class="muted" style="font-size:12px">자동 인식 안됨 - 아래에서 직접 입력하세요</span>';
+    : '<span class="muted" style="font-size:12px">자동 인식 안됨</span>';
+  // 자동 인식 결과 옆에 직접 수정용 날짜 입력 두 개를 두어
+  // 자동 인식이 틀렸을 때 즉시 수동으로 고칠 수 있도록 한다.
+  dEl.innerHTML = `
+    <div>${chipHtml}</div>
+    <div class="muted" style="font-size:11px;margin-top:6px">자동 인식이 틀렸으면 ↓ 직접 수정 (위 칩 클릭으로도 채워짐)</div>
+    <div class="grid2" style="margin-top:6px;gap:8px">
+      <div class="field" style="margin-bottom:0"><label style="font-size:11px">도착일</label>
+        <input type="date" value="${ar||''}" oninput="(function(v){const a=document.getElementById('imp_arrival');if(a)a.value=v;})(this.value)">
+      </div>
+      <div class="field" style="margin-bottom:0"><label style="font-size:11px">출국일</label>
+        <input type="date" value="${dep||''}" oninput="(function(v){const a=document.getElementById('imp_departure');if(a)a.value=v;})(this.value)">
+      </div>
+    </div>`;
   const hEl = document.getElementById('detectedHotels');
   hEl.innerHTML = _detected.hotels.length
     ? _detected.hotels.map(h=>`<span class="tag" style="background:#22c55e22;color:#15803d">✓ ${escapeHtml(h.name)}</span>`).join(' ')
@@ -1818,6 +1833,8 @@ function setImportRange(d){
   if(!ar) document.getElementById('imp_arrival').value = d;
   else if(!dep || d>ar) document.getElementById('imp_departure').value = d;
   else document.getElementById('imp_arrival').value = d;
+  // 미러 input(자동 인식 결과 옆) 갱신
+  try{ renderDetected(); }catch(e){}
 }
 
 function prefillImportForm(){
