@@ -1804,17 +1804,22 @@ function renderDetected(){
   const chipHtml = _detected.dates.length
     ? _detected.dates.map(d=>`<span class="tag" style="cursor:pointer;background:var(--accent);color:#fff" onclick="setImportRange('${d}')">${d}</span>`).join(' ')
     : '<span class="muted" style="font-size:12px">자동 인식 안됨</span>';
-  // 자동 인식 결과 옆에 직접 수정용 날짜 입력 두 개를 두어
-  // 자동 인식이 틀렸을 때 즉시 수동으로 고칠 수 있도록 한다.
+  // 자동 인식 결과 옆에 직접 수정용 입력칸. 큰 [도착 ~ 출국] 선택 버튼을
+  // 누르면 booking.com 스타일 range picker 가 떠 두 날짜를 한 번에 고를 수 있고,
+  // 아래 두 type=date 입력은 fine-grain 으로 한 쪽만 바꾸고 싶을 때 쓰도록 둠.
+  const rangeLabel = (ar && dep && ar!==dep)
+    ? `📅 ${ar} ~ ${dep} (${nightsBetween(ar,dep)}박)`
+    : (ar ? `📅 ${ar} ~ ?` : '📅 도착 ~ 출국 일자 선택 (탭)');
   dEl.innerHTML = `
     <div>${chipHtml}</div>
     <div class="muted" style="font-size:11px;margin-top:6px">자동 인식이 틀렸으면 ↓ 직접 수정 (위 칩 클릭으로도 채워짐)</div>
+    <button type="button" class="date-pick-btn ${(ar&&dep)?'':'placeholder'}" style="margin-top:6px" onclick="openImportDateRange()">${rangeLabel}</button>
     <div class="grid2" style="margin-top:6px;gap:8px">
       <div class="field" style="margin-bottom:0"><label style="font-size:11px">도착일</label>
-        <input type="date" value="${ar||''}" oninput="(function(v){const a=document.getElementById('imp_arrival');if(a)a.value=v;})(this.value)">
+        <input type="date" value="${ar||''}" oninput="(function(v){const a=document.getElementById('imp_arrival');if(a)a.value=v;renderDetected();})(this.value)">
       </div>
       <div class="field" style="margin-bottom:0"><label style="font-size:11px">출국일</label>
-        <input type="date" value="${dep||''}" oninput="(function(v){const a=document.getElementById('imp_departure');if(a)a.value=v;})(this.value)">
+        <input type="date" value="${dep||''}" oninput="(function(v){const a=document.getElementById('imp_departure');if(a)a.value=v;renderDetected();})(this.value)">
       </div>
     </div>`;
   const hEl = document.getElementById('detectedHotels');
@@ -1825,6 +1830,16 @@ function renderDetected(){
   pEl.innerHTML = _detected.places.length
     ? _detected.places.map(p=>`<span class="tag">${escapeHtml(p)}</span>`).join(' ')
     : '<span class="muted" style="font-size:12px">자동 인식 안됨 - 아래에서 직접 입력하세요</span>';
+}
+
+function openImportDateRange(){
+  const start = (document.getElementById('imp_arrival')||{}).value || '';
+  const end   = (document.getElementById('imp_departure')||{}).value || '';
+  openRangePicker(start, end, (s,e)=>{
+    if(document.getElementById('imp_arrival'))   document.getElementById('imp_arrival').value = s||'';
+    if(document.getElementById('imp_departure')) document.getElementById('imp_departure').value = e||s||'';
+    renderDetected();
+  }, {title:'도착 ~ 출국 일자 선택'});
 }
 
 function setImportRange(d){
