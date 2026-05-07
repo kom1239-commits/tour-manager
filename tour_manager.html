@@ -219,7 +219,7 @@ tr:hover{background:rgba(56,189,248,.05)}
 </head>
 <body>
 
-<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v17</div>
+<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v18</div>
 
 <header>
   <h1><span class="full-title">일정요약 앱</span></h1>
@@ -774,7 +774,7 @@ const STATUS_LABELS = {confirmed:'확정',tentative:'가예약',progress:'진행
 const STATUS_COLORS = {confirmed:'#22c55e',tentative:'#eab308',progress:'#3b82f6',completed:'#94a3b8',cancelled:'#ef4444'};
 const ROOM_TYPES = ['Twin','Single','Triple','Suite'];
 const CURRENCIES = ['KZT','USD','KRW','RUB'];
-const APP_VERSION = 'v17-booking-cal-trace';
+const APP_VERSION = 'v18-row-parser';
 console.log('[APP_VERSION]', APP_VERSION);
 window.APP_VERSION = APP_VERSION;
 // 화면 모서리 배지에도 정확한 버전 반영
@@ -4776,7 +4776,8 @@ function parseScheduleStructured(t){
       date: d.date,
       dow: d.dow,
       point_tags: extractPointTags(detailsArr, 20),
-      details: detailsArr
+      details: detailsArr,
+      raw_text: d.rawContent || ''
     });
   }
   return out;
@@ -5159,6 +5160,18 @@ function repairHotelStayDatesInDB(){
   }
 }
 
+// ============================================================
+// parseScheduleByDay — row-based (사용자 spec 1순위~3순위)
+//
+// 1순위: 왼쪽 첫 번째 칸에 날짜/일차 라벨이 있는 row 만 일정 row 로 인정.
+//        라벨 없는 행 (단체명/포함사항/항공안내/관광지 설명 등) 은 통째로 무시.
+// 2순위: 그 row 의 오른쪽 cell 라인을 다시 line 단위로 나누고, 동작 키워드
+//        (이동/관광/방문/도착/출발/체험/산책/체크인/투숙/경유/조식/중식/석식/
+//         호텔/공항/자유시간/전용차량/픽업/샌딩) 를 가진 라인만 일정으로 인정.
+//        설명문 패턴 (~로 유명/유네스코/대표적인/아름다운/위치한/해발 등) 은 제외.
+// 3순위: 같은 날짜의 details 는 라인 단위로 dedup. 캘린더 별표 dedup 은
+//        chimbDates Set 으로 이미 처리됨.
+// ============================================================
 function parseScheduleByDay(t){
   if(!t || !t.arrivalDate || !t.departureDate) return null;
   const dows = ['일','월','화','수','목','금','토'];
@@ -5167,144 +5180,149 @@ function parseScheduleByDay(t){
   const days = [];
   for(let i=0;i<totalDays;i++){
     const d=new Date(arrival); d.setDate(d.getDate()+i);
-    days.push({idx:i+1, date:localISO(d), dow:dows[d.getDay()], content:''});
+    days.push({idx:i+1, date:localISO(d), dow:dows[d.getDay()], content:'', details:[], rawContent:''});
   }
 
-  // [수정된 핵심 부분] 텍스트에서 '일자별 일정' 부분만 정확히 분리해냅니다.
   let text = String(t.originalText||'') + (t.originalText?'\n':'') + String(t.notes||'');
+  // '■ 일자별 일정' 헤더가 있으면 그 뒤만 사용 (앞쪽 공통정보 영역 노이즈 차단)
   const scheduleMatch = text.match(/■ 일자별 일정/);
-  if(scheduleMatch) {
-    text = text.slice(scheduleMatch.index);
-  } else {
-    const oldMatch = text.match(/━━━━━ 공통정보 ━━━━━/);
-    if(oldMatch) text = text.slice(0, oldMatch.index);
+  if(scheduleMatch) text = text.slice(scheduleMatch.index);
+  if(!text.trim()) return days;
+
+  const arrYear = arrival.getFullYear();
+  const ord={'첫':1,'둘':2,'두':2,'셋':3,'세':3,'넷':4,'네':4,'다섯':5,'여섯':6,'일곱':7,'여덟':8,'아홉':9,'열':10};
+
+  // ===== 1순위: 라인 시작의 날짜/일차 라벨 detect =====
+  function detectLeftMarker(rawLine){
+    const s = rawLine.replace(/^[•·\-*✓▷▶■●◆\s]+/, '').trim();
+    if(!s) return null;
+    let m;
+    // 제N일 (제1일, 제2일 ...) — '제1일차' 등 차/째 가 뒤에 붙으면 다른 패턴이 처리
+    if((m = s.match(/^제\s*(\d{1,2})\s*일(?!\s*[차째])/))) return {idx:+m[1], len:m[0].length};
+    // N일차 / N일째
+    if((m = s.match(/^(\d{1,2})\s*일\s*[차째]/))) return {idx:+m[1], len:m[0].length};
+    // 첫째날 / 둘째날 ...
+    if((m = s.match(/^([첫둘두셋세넷네다섯여섯일곱여덟아홉열])\s*째\s*날/))){
+      const i = ord[m[1]];
+      if(i) return {idx:i, len:m[0].length};
+    }
+    // Day N / DAY N
+    if((m = s.match(/^(?:Day|DAY|day)\s*(\d{1,2})/))) return {idx:+m[1], len:m[0].length};
+    // [N]
+    if((m = s.match(/^\[\s*(\d{1,2})\s*\]/))) return {idx:+m[1], len:m[0].length};
+    // 2026년 5월 15일 / 2026년 05월 15일
+    if((m = s.match(/^\d{4}\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일?/))) return {date:{mo:+m[1], dy:+m[2]}, len:m[0].length};
+    // 5월 15일
+    if((m = s.match(/^(\d{1,2})\s*월\s*(\d{1,2})\s*일?/))) return {date:{mo:+m[1], dy:+m[2]}, len:m[0].length};
+    // 05/15 (앞뒤로 다른 숫자/콜론/점 없는 순수 슬래시)
+    if((m = s.match(/^(\d{1,2})\/(\d{1,2})(?=\s|\(|$|[^\d/:.])/))){
+      const mo=+m[1], dy=+m[2];
+      if(mo>=1&&mo<=12&&dy>=1&&dy<=31) return {date:{mo, dy}, len:m[0].length};
+    }
+    // N일 (단독, prefix 없음). '5월 15일' 의 '15일' 부분이 잘못 매치되지 않도록
+    // 이 패턴은 '월' 표기가 앞에 없을 때만 동작.
+    if((m = s.match(/^(\d{1,2})\s*일(?:\s|\(|$)/))){
+      const n = +m[1];
+      if(n>=1 && n<=31) return {idx:n, len:m[0].length};
+    }
+    return null;
   }
 
-  if(!text.trim()) return days;
-  const ord={'첫':1,'둘':2,'두':2,'셋':3,'세':3,'넷':4,'네':4,'다섯':5,'여섯':6,'일곱':7,'여덟':8,'아홉':9,'열':10};
-  const arrYear = arrival.getFullYear();
-  const markers = [];
-  const push = (idx, start, end) => { if(idx>=1 && idx<=totalDays) markers.push({idx, start, end}); };
-  let m, re;
-  // Pattern A1: "제N일"
-  re=/제\s*(\d{1,2})\s*일/g;
-  while((m=re.exec(text))) push(+m[1], m.index, m.index+m[0].length);
-  // Pattern A2: "N일차" / "N일째"
-  re=/(\d{1,2})\s*일\s*[차째]/g;
-  while((m=re.exec(text))) push(+m[1], m.index, m.index+m[0].length);
-  // Pattern B: "첫째날" / "둘째날" ...
-  re=/([첫둘두셋세넷네다섯여섯일곱여덟아홉열])\s*째\s*날/g;
-  while((m=re.exec(text))){ const i=ord[m[1]]; if(i) push(i, m.index, m.index+m[0].length); }
-  // Pattern C: "Day N" / "DAY N" / "[N]"
-  re=/(?:Day|DAY|day)\s*(\d{1,2})/g;
-  while((m=re.exec(text))) push(+m[1], m.index, m.index+m[0].length);
-  re=/\[\s*(\d{1,2})\s*\]/g;
-  while((m=re.exec(text))) push(+m[1], m.index, m.index+m[0].length);
-  // Pattern D: 문서 안의 날짜 마커 ("5월 18일", "5/18")
-  // — A/B/C 가 마커를 하나도 못 찾았을 때만 동작.
-  // — 트립 범위 안의 날짜가 하나라도 있으면 절대 매핑(기존 동작).
-  // — 전부 범위 밖이면 텍스트 안에서 가장 먼저 나오는 날짜를 day 1 으로 간주하고
-  //   상대 offset 으로 매핑 (사용자가 도착일을 수동 변경한 경우).
-  if(!markers.length){
-    const allDates = [];
-    // "5월 8일" / "5월 8" — 한국어 표준
-    re=/(\d{1,2})\s*월\s*(\d{1,2})\s*일?/g;
-    while((m=re.exec(text))){
-      const mo=+m[1], dy=+m[2];
-      if(mo>=1&&mo<=12&&dy>=1&&dy<=31){
-        allDates.push({mo, dy, start:m.index, end:m.index+m[0].length});
-      }
-    }
-    // 한국어 형식이 없을 때만 슬래시 형식 시도 (앞뒤에 숫자/콜론/점이 없는 "5/8")
-    if(!allDates.length){
-      re=/(?<![\d:.])(\d{1,2})\/(\d{1,2})(?![\d:.])/g;
-      while((m=re.exec(text))){
-        const mo=+m[1], dy=+m[2];
-        if(mo>=1&&mo<=12&&dy>=1&&dy<=31){
-          allDates.push({mo, dy, start:m.index, end:m.index+m[0].length});
+  // 라인 순회하면서 segment(=하루치 cell 묶음) 만들기
+  const segments = [];     // 각: {dayIdx, lines:[]}
+  const orphanDates = [];  // 트립 범위 밖 날짜들 (in-range 가 0 일 때 relative offset 으로 매핑)
+  let curSeg = null;
+  const lines = text.split(/\r\n|\n|\r/);
+  for(const line of lines){
+    const mk = detectLeftMarker(line);
+    if(mk){
+      if(curSeg) segments.push(curSeg);
+      const stripped = line.replace(/^[•·\-*✓▷▶■●◆\s]+/, '').trim();
+      // 마커 라벨 부분 제거하고 남은 텍스트 (= 같은 줄에 붙은 오른쪽 cell)
+      const remainder = stripped.slice(mk.len).replace(/^[\s\-:·,()｜|/]+/, '').trim();
+      let dayIdx = null;
+      if(typeof mk.idx === 'number'){
+        if(mk.idx >= 1 && mk.idx <= totalDays) dayIdx = mk.idx;
+      } else if(mk.date){
+        const ds = `${arrYear}-${String(mk.date.mo).padStart(2,'0')}-${String(mk.date.dy).padStart(2,'0')}`;
+        if(ds >= t.arrivalDate && ds <= t.departureDate){
+          dayIdx = nightsBetween(t.arrivalDate, ds) + 1;
+        } else {
+          orphanDates.push({mo: mk.date.mo, dy: mk.date.dy, lines: remainder ? [remainder] : []});
+          curSeg = null;
+          continue;
         }
       }
+      curSeg = (dayIdx !== null) ? { dayIdx, lines: remainder ? [remainder] : [] } : null;
+      continue;
     }
-    if(allDates.length){
-      // 트립 범위 안의 날짜가 하나라도 있으면 절대 매핑
-      const inRange = allDates.filter(od => {
-        const ds=`${arrYear}-${String(od.mo).padStart(2,'0')}-${String(od.dy).padStart(2,'0')}`;
-        return ds>=t.arrivalDate && ds<=t.departureDate;
-      });
-      if(inRange.length){
-        for(const od of inRange){
-          const ds=`${arrYear}-${String(od.mo).padStart(2,'0')}-${String(od.dy).padStart(2,'0')}`;
-          const idx=nightsBetween(t.arrivalDate, ds)+1;
-          push(idx, od.start, od.end);
-        }
-      } else {
-        // 전부 범위 밖 → 텍스트 첫 날짜 = day 1 으로 상대 매핑
-        const first = allDates[0];
-        const baseDate = new Date(2000, first.mo - 1, first.dy);
-        for(const od of allDates){
-          let offsetDays = Math.round((new Date(2000, od.mo-1, od.dy) - baseDate) / 86400000);
-          if(offsetDays < -200) offsetDays += 365; // 연도 wrap (12/30 → 1/1)
-          if(offsetDays < 0) continue; // 첫 날짜보다 이른 날짜는 스킵
-          const targetIdx = offsetDays + 1;
-          if(targetIdx >= 1 && targetIdx <= totalDays){
-            push(targetIdx, od.start, od.end);
-          }
-        }
+    if(curSeg){
+      curSeg.lines.push(line);
+    } else if(orphanDates.length){
+      orphanDates[orphanDates.length-1].lines.push(line);
+    }
+    // 마커 만나기 전 라인들은 무시 (1순위 — 왼쪽 라벨 없는 row 는 일정 아님)
+  }
+  if(curSeg) segments.push(curSeg);
+
+  // in-range 마커 0 + orphan 있으면 → relative offset 매핑 (사용자가 도착일 수동 변경 케이스)
+  if(!segments.length && orphanDates.length){
+    const first = orphanDates[0];
+    const baseDate = new Date(2000, first.mo-1, first.dy);
+    for(const od of orphanDates){
+      let off = Math.round((new Date(2000, od.mo-1, od.dy) - baseDate) / 86400000);
+      if(off < -200) off += 365;
+      if(off < 0) continue;
+      const idx = off + 1;
+      if(idx >= 1 && idx <= totalDays){
+        segments.push({ dayIdx: idx, lines: od.lines });
       }
     }
   }
-  // 최후의 수단: 마커가 전혀 없지만 트립이 다일짜리 → 텍스트를 줄 단위로 N등분해서
-  // 1일/2일/...에 균등 분배. 사용자가 "1일이 내가 고른 날" 이라고 명시한 요구사항.
-  // 단, 문서 헤더(발신/단체명/일자·지역·교통/표 컬럼 등)는 분배 대상에서 제외해서
-  // 1일차에 메타데이터가 끼어드는 현상을 방지.
-  if(!markers.length && totalDays >= 2){
-    const allLines = text.split(/\n/);
-    // 노이즈 아닌 라인만 골라서 그 라인들의 텍스트 시작 위치를 기억
-    const bodyPositions = [];
-    let cumulative = 0;
-    for(const ln of allLines){
-      const trimmed = ln.trim();
-      if(trimmed && !isDefinitelyNoiseLine(trimmed)){
-        bodyPositions.push(cumulative + (ln.length - ln.trimStart().length));
-      }
-      cumulative += ln.length + 1; // +1 for newline
-    }
-    if(bodyPositions.length >= totalDays){
-      const perDay = Math.ceil(bodyPositions.length / totalDays);
-      for(let dayIdx=1; dayIdx<=totalDays; dayIdx++){
-        const startLine = (dayIdx-1) * perDay;
-        if(startLine >= bodyPositions.length) break;
-        const pos = bodyPositions[startLine];
-        push(dayIdx, pos, pos);
-      }
-    }
+
+  if(!segments.length) return days;
+
+  // ===== 2순위: 라인 단위 필터 — 동작 키워드 OK / 설명문 OUT =====
+  const VALID_KEYWORDS = /이동|관광|방문|도착|출발|체험|산책|체크인|투숙|경유|조식|중식|석식|호텔|공항|자유\s*시간|전용\s*차량|전용차|픽업|샌딩|미팅/;
+  const DESCRIPTIVE_PATTERNS = /로\s*유명|로\s*알려진|라는\s*뜻|을\s*의미|를\s*의미|유네스코|세계\s*문화\s*유산|세계\s*자연\s*유산|중앙\s*아시아|여러\s*나라|대표적인|아름다운|웅장한|역사적인|관광객들에게\s*인기|자랑하는|위치한|해발|면적|길이|고도/;
+
+  function isValidScheduleLine(line){
+    const s = String(line||'').trim().replace(/^[•·\-*✓▷▶■●◆\s\-]+/, '').trim();
+    if(!s) return false;
+    if(s.length > 200) return false;
+    if(DESCRIPTIVE_PATTERNS.test(s)) return false;
+    if(!VALID_KEYWORDS.test(s)) return false;
+    return true;
   }
-  if(!markers.length) return days;
-  markers.sort((a,b)=>a.start-b.start);
-  
-  // Dedupe overlapping markers
-  const cleaned = [];
-  for(const mk of markers){
-    const last = cleaned[cleaned.length-1];
-    if(last && mk.start - last.end < 8 && last.idx === mk.idx) continue;
-    if(last && mk.start - last.end < 8){ cleaned[cleaned.length-1] = mk; continue; }
-    cleaned.push(mk);
+
+  // ===== 3순위: 같은 날짜의 segment 합치고 라인 단위 dedup =====
+  const merged = {};   // dayIdx → raw lines (필터 전, 침블락 등 장소 검색용)
+  for(const seg of segments){
+    if(!merged[seg.dayIdx]) merged[seg.dayIdx] = [];
+    merged[seg.dayIdx].push(...seg.lines);
   }
-  for(let i=0;i<cleaned.length;i++){
-    const cur=cleaned[i], next=cleaned[i+1];
-    let chunk = text.slice(cur.end, next ? next.start : text.length).trim();
-    // Only truncate if a stop keyword appears as a clear section header
-    const stopHeader = /(?:^|\n)\s*[•·\-*✓▷▶■●◆\s]*(?:단체\s?명|피켓\s?명|그룹\s?명|인\s?원|룸\s?타입|객실\s?타입|현지\s?가이드|인솔자|포함\s?사항|불포함\s?사항|숙박\s*정보|특이\s?사항|기타\s?사항|항공편|편명|연락처|담당자|상품\s?명|행사\s?기간|여행\s?기간)\s*[\/／:：]/m;
-    const cutMid = chunk.search(stopHeader);
-    if(cutMid > 0) chunk = chunk.slice(0, cutMid).trim();
-    const slot = days[cur.idx-1];
-    if(slot){
-      slot.rawContent = (slot.rawContent ? slot.rawContent+'\n' : '') + chunk;
-      const compact = compactDayText(slot.rawContent);
-      slot.content = compact;
-      slot.details = normalizeDetails(compact);
+  for(const dayIdxKey of Object.keys(merged)){
+    const dayIdx = +dayIdxKey;
+    const slot = days[dayIdx - 1];
+    if(!slot) continue;
+    const allLines = merged[dayIdxKey];
+    const validLines = allLines.filter(isValidScheduleLine);
+    const seen = new Set();
+    const uniqueDetails = [];
+    for(const line of validLines){
+      const trimmed = String(line).trim().replace(/^[•·\-*✓▷▶■●◆\s\-]+/, '').trim();
+      if(!trimmed) continue;
+      const norm = trimmed.replace(/\s+/g, ' ').toLowerCase();
+      if(seen.has(norm)) continue;
+      seen.add(norm);
+      uniqueDetails.push(trimmed);
     }
+    // rawContent 는 필터 전 모든 라인 보존 (detectChimbulakDates 등이 사용)
+    slot.rawContent = allLines.join('\n');
+    slot.details = uniqueDetails;
+    slot.content = uniqueDetails.map(x => '- ' + x).join('\n');
   }
+
   return days;
 }
 // ============== CHIMBULAK (Шымбулак) view ==============
@@ -5332,9 +5350,16 @@ function detectChimbulakDates(t){
   // scanning generates from the '5/18 출발일 ... 포함사항: 침블락 입장료' header.
   const struct = parseScheduleStructured(t);
   if(struct && struct.daily_schedule.length){
-    const anyContent = struct.daily_schedule.some(d=>normalizeDetails(d&&d.details).length>0);
+    const anyContent = struct.daily_schedule.some(d=>normalizeDetails(d&&d.details).length>0 || (d&&d.raw_text));
     if(anyContent){
-      const hits = struct.daily_schedule.filter(d => (d.point_tags||[]).some(p=>/침블락|침불락/.test(p))).map(d=>d.date);
+      // 사용자 spec 3순위 — Set 으로 dedup, 같은 날짜에 침블락이 여러 번 나와도 1번만.
+      // point_tags 외에 raw_text (필터 전 cell 라인) 도 검색해서, 설명문 섞인
+      // 라인 때문에 침블락 라인이 필터 제외됐어도 별표는 표시되도록 보강.
+      const hits = struct.daily_schedule.filter(d => {
+        const inTags = (d.point_tags||[]).some(p=>/침블락|침불락/.test(p));
+        const inRaw = /침블락|침불락|chimbulak|shymbulak/i.test(d.raw_text||'');
+        return inTags || inRaw;
+      }).map(d=>d.date);
       return Array.from(new Set(hits)).sort();
     }
   }
