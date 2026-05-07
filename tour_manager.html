@@ -219,7 +219,7 @@ tr:hover{background:rgba(56,189,248,.05)}
 </head>
 <body>
 
-<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v22</div>
+<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v23</div>
 
 <header>
   <h1><span class="full-title">일정요약 앱</span></h1>
@@ -774,7 +774,7 @@ const STATUS_LABELS = {confirmed:'확정',tentative:'가예약',progress:'진행
 const STATUS_COLORS = {confirmed:'#22c55e',tentative:'#eab308',progress:'#3b82f6',completed:'#94a3b8',cancelled:'#ef4444'};
 const ROOM_TYPES = ['Twin','Single','Triple','Suite'];
 const CURRENCIES = ['KZT','USD','KRW','RUB'];
-const APP_VERSION = 'v22-place-name-allow';
+const APP_VERSION = 'v23-client-focus-twin-single';
 console.log('[APP_VERSION]', APP_VERSION);
 window.APP_VERSION = APP_VERSION;
 // 화면 모서리 배지에도 정확한 버전 반영
@@ -2324,6 +2324,14 @@ function openTeamModal(id){
   document.getElementById('teamModalBody').innerHTML = teamFormHtml(team);
   bindTeamForm(team);
   openModal('teamModal');
+  // 의뢰인이 비어있으면 자동으로 그 자리로 스크롤 + 커서 포커스
+  setTimeout(() => {
+    const cn = document.getElementById('t_clientName');
+    if(cn && !cn.value.trim()){
+      try{ cn.scrollIntoView({behavior:'smooth', block:'center'}); }catch(e){}
+      try{ cn.focus(); }catch(e){}
+    }
+  }, 150);
 }
 
 function teamFormHtml(t){
@@ -2490,6 +2498,10 @@ function bindTeamForm(t){
 
 function renderHotelStays(){
   const el = document.getElementById('hotelStaysList');
+  // 모든 stay 에 Twin/Single 슬롯 보장 (기존 데이터에도 자동 적용)
+  if(_teamWorking && Array.isArray(_teamWorking.hotelStays)){
+    _teamWorking.hotelStays.forEach(stay => ensureTwinSingleRoomSlots(stay));
+  }
   if(!_teamWorking.hotelStays?.length){
     el.innerHTML = `<div style="background:var(--panel2);padding:10px;border-radius:6px;font-size:12px">
       <div class="muted">호텔 숙박이 없습니다.</div>
@@ -2550,13 +2562,31 @@ function renderHotelStays(){
   `;
   }).join('');
 }
+// 사용자 명시 — '한 호텔에는 늘 트윈과 싱글이 공존'.
+// hotelStay 의 rooms 에 Twin / Single 슬롯이 항상 있도록 보장.
+// 비어있으면 count=0 으로 자리만 만들어주고, 사용자가 입력하는대로 들어감.
+function ensureTwinSingleRoomSlots(stay){
+  if(!stay) return;
+  if(!Array.isArray(stay.rooms)) stay.rooms = [];
+  const cur = (db?.settings?.baseCurrency) || 'KZT';
+  const hasTwin = stay.rooms.some(r => r && r.type === 'Twin');
+  const hasSingle = stay.rooms.some(r => r && r.type === 'Single');
+  if(!hasTwin) stay.rooms.unshift({type:'Twin', count:0, pricePerNight:0, currency:cur, occupants:[]});
+  if(!hasSingle){
+    // Twin 다음에 Single 이 오도록 push (Twin 이 0번이면 Single 은 그 다음)
+    stay.rooms.push({type:'Single', count:0, pricePerNight:0, currency:cur, occupants:[]});
+  }
+}
+
 function addHotelStay(){
   // Force any pending input changes to commit before re-render
   if(document.activeElement && typeof document.activeElement.blur==='function')document.activeElement.blur();
   // Smart default: new hotel's check-in = previous hotel's check-out (booking.com style)
   const prev = _teamWorking.hotelStays[_teamWorking.hotelStays.length-1];
   const prevOut = prev?.checkOut || '';
-  _teamWorking.hotelStays.push({hotelId:'',checkIn:prevOut,checkOut:'',rooms:[]});
+  const newStay = {hotelId:'',checkIn:prevOut,checkOut:'',rooms:[]};
+  ensureTwinSingleRoomSlots(newStay);
+  _teamWorking.hotelStays.push(newStay);
   setTimeout(()=>{
     renderHotelStays();
     // Scroll to the newly added hotel
