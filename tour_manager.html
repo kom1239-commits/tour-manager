@@ -219,7 +219,7 @@ tr:hover{background:rgba(56,189,248,.05)}
 </head>
 <body>
 
-<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v27</div>
+<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v28</div>
 
 <header>
   <h1><span class="full-title">일정요약 앱</span></h1>
@@ -774,7 +774,7 @@ const STATUS_LABELS = {confirmed:'확정',tentative:'가예약',progress:'진행
 const STATUS_COLORS = {confirmed:'#22c55e',tentative:'#eab308',progress:'#3b82f6',completed:'#94a3b8',cancelled:'#ef4444'};
 const ROOM_TYPES = ['Twin','Single','Triple','Suite'];
 const CURRENCIES = ['KZT','USD','KRW','RUB'];
-const APP_VERSION = 'v27-room-count-fix';
+const APP_VERSION = 'v28-hotel-name-focus';
 console.log('[APP_VERSION]', APP_VERSION);
 window.APP_VERSION = APP_VERSION;
 // 화면 모서리 배지에도 정확한 버전 반영
@@ -2565,7 +2565,7 @@ function renderHotelStays(){
         </div>
       </div>
       <div class="field"><label>호텔명 <span class="muted" style="font-weight:400;font-size:11px">(클릭하면 기존 호텔 목록 · 새 이름이면 자동 등록)</span></label>
-        <input list="hotelList" value="${escapeHtml(s.hotelId?(hotelName(s.hotelId)!=='-'?hotelName(s.hotelId):''):'')}" placeholder="호텔명 입력 또는 선택" onchange="_teamWorking.hotelStays[${i}].hotelId=resolveHotelByName(this.value)" onfocus="this.select()">
+        <input id="hotelName_${i}" list="hotelList" value="${escapeHtml(s.hotelId?(hotelName(s.hotelId)!=='-'?hotelName(s.hotelId):''):'')}" placeholder="호텔명 입력 또는 선택" onchange="_teamWorking.hotelStays[${i}].hotelId=resolveHotelByName(this.value)" onfocus="this.select()">
       </div>
       <div class="field"><label>📅 체크인 ~ 체크아웃</label>
         <button type="button" class="date-pick-btn ${s.checkIn?'':'placeholder'}" onclick="openHotelStayDateRange(${i})">${formatRangeButton(s.checkIn, s.checkOut, '날짜 선택')}</button>
@@ -2630,11 +2630,18 @@ function addHotelStay(){
   _teamWorking.hotelStays.push(newStay);
   setTimeout(()=>{
     renderHotelStays();
-    // Scroll to the newly added hotel
+    // 새로 추가된 호텔의 호텔명 input 으로 자동 스크롤 + 커서 포커스
     setTimeout(()=>{
-      const list = document.getElementById('hotelStaysList');
-      const cards = list?.querySelectorAll('.list-row');
-      if(cards && cards.length){cards[cards.length-1].scrollIntoView({behavior:'smooth',block:'center'})}
+      const newIdx = _teamWorking.hotelStays.length - 1;
+      const nameInput = document.getElementById(`hotelName_${newIdx}`);
+      if(nameInput){
+        try{ nameInput.scrollIntoView({behavior:'smooth', block:'center'}); }catch(e){}
+        try{ nameInput.focus(); }catch(e){}
+      } else {
+        const list = document.getElementById('hotelStaysList');
+        const cards = list?.querySelectorAll('.list-row');
+        if(cards && cards.length){cards[cards.length-1].scrollIntoView({behavior:'smooth',block:'center'})}
+      }
     },50);
   },0);
 }
@@ -2800,7 +2807,8 @@ function openGuideAssignDateRange(idx){
 }
 function removeHotelStay(i){_teamWorking.hotelStays.splice(i,1);renderHotelStays()}
 function addRoom(i){if(!_teamWorking.hotelStays[i].rooms)_teamWorking.hotelStays[i].rooms=[];
-  _teamWorking.hotelStays[i].rooms.push({type:'Twin',count:1,pricePerNight:0,currency:'KZT',occupants:[]});renderHotelStays()}
+  // 객실은 무조건 0 으로 시작 — 사용자가 명시적으로 입력하게 (사용자 룰)
+  _teamWorking.hotelStays[i].rooms.push({type:'Twin',count:0,pricePerNight:0,currency:(db?.settings?.baseCurrency)||'KZT',occupants:[]});renderHotelStays()}
 function removeRoom(i,j){_teamWorking.hotelStays[i].rooms.splice(j,1);renderHotelStays()}
 
 // Import occupant names from file (txt / csv / tsv / xlsx-as-csv)
