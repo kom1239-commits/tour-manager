@@ -219,7 +219,7 @@ tr:hover{background:rgba(56,189,248,.05)}
 </head>
 <body>
 
-<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v18</div>
+<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v19</div>
 
 <header>
   <h1><span class="full-title">일정요약 앱</span></h1>
@@ -774,7 +774,7 @@ const STATUS_LABELS = {confirmed:'확정',tentative:'가예약',progress:'진행
 const STATUS_COLORS = {confirmed:'#22c55e',tentative:'#eab308',progress:'#3b82f6',completed:'#94a3b8',cancelled:'#ef4444'};
 const ROOM_TYPES = ['Twin','Single','Triple','Suite'];
 const CURRENCIES = ['KZT','USD','KRW','RUB'];
-const APP_VERSION = 'v18-row-parser';
+const APP_VERSION = 'v19-no-itinerary-list';
 console.log('[APP_VERSION]', APP_VERSION);
 window.APP_VERSION = APP_VERSION;
 // 화면 모서리 배지에도 정확한 버전 반영
@@ -3833,34 +3833,8 @@ function renderTeamDetail(t){
                 const prefix = isChimb ? '⭐ ' : '📍 ';
                 return `<div style="font-size:14px;line-height:1.55;padding:1px 0;${isChimb?'color:#b45309;font-weight:800':'font-weight:600'}">${prefix}${escapeHtml(p)}</div>`;
               }).join('');
-            // 활동 목록(일정) — 방문지로 이미 노출된 줄 + 항공편 코드 / 짧은 잔여 단편 제외
-            const placeCanon = new Set(point_tags.map(p=>p.replace(/\s+/g,'')));
-            const isJustLandmark = (line)=>{
-              const c = line.replace(/\s+/g,'').replace(/^[•·\-*✓▷▶■●◆]+/,'');
-              return placeCanon.has(c);
-            };
-            const isActivityNoise = (line)=>{
-              const s = String(line||'').trim();
-              if(!s) return true;
-              if(/^[A-Z]{2}\s*\d{2,4}$/.test(s)) return true;     // 항공편 코드 (ZE136 등)
-              if(/^\d{1,2}:\d{2}$/.test(s)) return true;          // 시간
-              if(/^전\s*일$/.test(s) || /^전용차량$/.test(s)) return true;
-              if(/^제\s*\d+\s*일/.test(s)) return true;
-              if(s.length < 3) return true;
-              return false;
-            };
-            const activityLines = details
-              .filter(l=>!isJustLandmark(l))
-              .filter(l=>!isActivityNoise(l))
-              .filter(l=>String(l).length<=80)
-              .slice(0,6);
-            const activityList = activityLines.length
-              ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)">
-                  <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:3px">일정</div>
-                  ${activityLines.map(l=>`<div style="font-size:12px;line-height:1.5;color:#475569">- ${escapeHtml(String(l).slice(0,80))}</div>`).join('')}
-                </div>`
-              : '';
-            const body = placeList + activityList;
+            // '일정' 동작 라인 섹션은 사용자 요청에 따라 완전 제거 — 📍 장소만 표시.
+            const body = placeList;
             return `<div style="display:flex;gap:10px;margin-bottom:8px;padding:10px;border-left:4px solid ${t.color||'#3b82f6'};background:var(--panel);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
               <div style="flex:0 0 64px;text-align:center;border-right:1px dashed var(--line);padding-right:8px">
                 <div style="font-size:18px;font-weight:800;color:${t.color||'#3b82f6'};line-height:1.1">${d.day_number}일</div>
