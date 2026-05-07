@@ -5451,11 +5451,38 @@ try{
 }
 
 // ============== PWA SERVICE WORKER + INSTALL PROMPT ==============
+// 새 버전이 배포되면 자동 감지 후 reload — 사용자가 수동 강제새로고침 안 해도 됨
 if('serviceWorker' in navigator){
   window.addEventListener('load', function(){
     try{
-      navigator.serviceWorker.register('service-worker.js').catch(function(err){
+      navigator.serviceWorker.register('service-worker.js').then(function(reg){
+        if(!reg) return;
+        // 새 SW 가 설치되면 즉시 reload — 캐시된 옛날 페이지 갱신
+        reg.addEventListener('updatefound', function(){
+          const newSW = reg.installing;
+          if(!newSW) return;
+          newSW.addEventListener('statechange', function(){
+            if(newSW.state === 'installed' && navigator.serviceWorker.controller){
+              // 새 SW skipWaiting 요청 → activate → reload
+              try{ newSW.postMessage({type:'SKIP_WAITING'}); }catch(e){}
+            }
+          });
+        });
+        // 5분마다 update 체크 (페이지 열어둔 채로도 새 버전 감지)
+        setInterval(function(){ try{ reg.update(); }catch(e){} }, 5*60*1000);
+        // 페이지 다시 보이게 될 때도 update 체크
+        document.addEventListener('visibilitychange', function(){
+          if(document.visibilityState === 'visible'){ try{ reg.update(); }catch(e){} }
+        });
+      }).catch(function(err){
         console.log('SW 등록 실패 (무시 가능):', err);
+      });
+      // 새 SW 가 controller 가 되면 페이지 reload (skipWaiting → activate → 이 이벤트)
+      let _swReloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function(){
+        if(_swReloading) return;
+        _swReloading = true;
+        window.location.reload();
       });
     }catch(e){}
   });
