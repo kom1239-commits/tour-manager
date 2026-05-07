@@ -219,7 +219,7 @@ tr:hover{background:rgba(56,189,248,.05)}
 </head>
 <body>
 
-<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v25</div>
+<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v26</div>
 
 <header>
   <h1><span class="full-title">일정요약 앱</span></h1>
@@ -774,7 +774,7 @@ const STATUS_LABELS = {confirmed:'확정',tentative:'가예약',progress:'진행
 const STATUS_COLORS = {confirmed:'#22c55e',tentative:'#eab308',progress:'#3b82f6',completed:'#94a3b8',cancelled:'#ef4444'};
 const ROOM_TYPES = ['Twin','Single','Triple','Suite'];
 const CURRENCIES = ['KZT','USD','KRW','RUB'];
-const APP_VERSION = 'v25-hotel-status-band';
+const APP_VERSION = 'v26-checkout-day-shown';
 console.log('[APP_VERSION]', APP_VERSION);
 window.APP_VERSION = APP_VERSION;
 // 화면 모서리 배지에도 정확한 버전 반영
@@ -1373,16 +1373,14 @@ function renderHotelStatusTimeline(){
     const monthStart = `${yr}-${String(m+1).padStart(2,'0')}-01`;
     const monthEnd   = `${yr}-${String(m+1).padStart(2,'0')}-${String(daysInMonth).padStart(2,'0')}`;
 
-    // 이 달과 겹치는 stay 들을 segment 단위로 모음 (cell-chip 이 아닌 stay-band 단위).
-    // checkOut 당일은 떠나는 날이므로 묵는 마지막 박 = checkOut - 1일 (sameDay 면 그날만).
+    // 이 달과 겹치는 stay 들을 segment 단위로 모음.
+    // 사용자 룰: '체크아웃 당일도 묵는 것으로 표시' — 5/8~5/11 stay 면
+    // 5/8/9/10/11 모두 칠해야 한다 (호텔 캘린더 가시성 우선).
     const stays = [];
     for(const h of data){
       for(const s of h.stays){
         if(!s.checkIn || !s.checkOut) continue;
-        const sameDay = s.checkIn === s.checkOut;
-        let stayLastNight;
-        if(sameDay){ stayLastNight = s.checkOut; }
-        else { const x = new Date(s.checkOut); x.setDate(x.getDate()-1); stayLastNight = localISO(x); }
+        const stayLastNight = s.checkOut;
         if(stayLastNight < monthStart || s.checkIn > monthEnd) continue;
         const segStart = s.checkIn < monthStart ? monthStart : s.checkIn;
         const segEnd   = stayLastNight > monthEnd ? monthEnd : stayLastNight;
