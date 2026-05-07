@@ -219,7 +219,7 @@ tr:hover{background:rgba(56,189,248,.05)}
 </head>
 <body>
 
-<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v19</div>
+<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v20</div>
 
 <header>
   <h1><span class="full-title">일정요약 앱</span></h1>
@@ -774,7 +774,7 @@ const STATUS_LABELS = {confirmed:'확정',tentative:'가예약',progress:'진행
 const STATUS_COLORS = {confirmed:'#22c55e',tentative:'#eab308',progress:'#3b82f6',completed:'#94a3b8',cancelled:'#ef4444'};
 const ROOM_TYPES = ['Twin','Single','Triple','Suite'];
 const CURRENCIES = ['KZT','USD','KRW','RUB'];
-const APP_VERSION = 'v19-no-itinerary-list';
+const APP_VERSION = 'v20-airport-rule';
 console.log('[APP_VERSION]', APP_VERSION);
 window.APP_VERSION = APP_VERSION;
 // 화면 모서리 배지에도 정확한 버전 반영
@@ -1931,19 +1931,65 @@ function setImportRange(d){
   _refreshImportDateBtn();
 }
 
+// 출국일 자동 결정 룰 — 사용자 명시: "첫날 제외하고 '알마티 공항' 이 나오는
+// 날 = 일정 마지막 날 (출국일)". 여러 번 나오면 가장 늦은 날을 출국일로 사용.
+// → '5월 12일 인천 도착' 같은 다음날 정보가 트립 출국일로 잘못 잡히는 것 방지.
+function detectDepartureByAirport(text, firstDateISO){
+  if(!text || !firstDateISO) return null;
+  const arrYear = +firstDateISO.slice(0, 4) || new Date().getFullYear();
+  const lines = text.split(/\r\n|\n|\r/);
+  let curDate = null;
+  let lastAirportDate = null;
+  // 트립 첫째날 = 입국일 (그 날의 알마티 공항은 도착이라 무시)
+  for(const rawLine of lines){
+    const line = rawLine.trim();
+    if(!line) continue;
+    let m;
+    // 라인 시작 부근의 날짜 마커 갱신 (YYYY-MM-DD / M월 D일 / M/D 등)
+    if((m = line.match(/^[\s\-•·*]*?(\d{4})\s*[-./년]\s*(\d{1,2})\s*[-./월]\s*(\d{1,2})\s*일?/))){
+      curDate = `${m[1]}-${String(+m[2]).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`;
+    } else if((m = line.match(/^[\s\-•·*]*?(\d{1,2})\s*월\s*(\d{1,2})\s*일?/))){
+      curDate = `${arrYear}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`;
+    } else if((m = line.match(/^[\s\-•·*]*?(\d{1,2})\/(\d{1,2})(?=\s|\(|$|[^\d/])/))){
+      const mo=+m[1], dy=+m[2];
+      if(mo>=1&&mo<=12&&dy>=1&&dy<=31){
+        curDate = `${arrYear}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;
+      }
+    }
+    if(!curDate) continue;
+    if(curDate === firstDateISO) continue; // 첫째날 알마티 공항 = 입국 (무시)
+    if(/알마티\s*(?:국제\s*)?공항|almaty.*?airport|алматы.*?аэропорт/i.test(line)){
+      lastAirportDate = curDate;
+    }
+  }
+  return lastAirportDate;
+}
+
 function prefillImportForm(){
   if(_detected.dates.length >= 1){
     const arrival = _detected.dates[0];
 
-    // 마지막 날짜가 '다음날 인천 도착' 같은 귀국 후속 정보라면 제외
     let cleanDates = _detected.dates.slice();
-    if(cleanDates.length >= 2 && _importedText){
+
+    // [우선] 사용자 룰 — 첫날 제외 '알마티 공항' 이 나오는 날 = 출국일
+    const airportDeparture = detectDepartureByAirport(_importedText, arrival);
+    if(airportDeparture){
+      console.log('[IMPORT] departure by 알마티 공항 rule:', airportDeparture);
+      // 그 날짜 이후로 잡힌 자동 인식 날짜는 트립 밖으로 간주 → 제외
+      cleanDates = cleanDates.filter(d => d <= airportDeparture);
+      if(!cleanDates.includes(airportDeparture)) cleanDates.push(airportDeparture);
+      cleanDates.sort();
+      // _detected.dates 도 같이 갱신해서 chip 에서도 트립 후 날짜는 안 보이게
+      _detected.dates = cleanDates.slice();
+    } else if(cleanDates.length >= 2 && _importedText){
+      // [fallback] '다음날 인천 도착' 같은 귀국 후속 라인 패턴으로 마지막 날짜 제외
       const last = cleanDates[cleanDates.length - 1];
       const idx = _importedText.indexOf(last);
       if(idx >= 0){
         const around = _importedText.slice(Math.max(0, idx - 40), idx + 40);
         if(/(다음\s*날|익일|이튿날).*?(인천|부산)|(?:인천|부산)\s*(?:국제\s*)?공항\s*(?:도착|입국)|인천\s*도착|부산\s*도착/.test(around)){
           cleanDates = cleanDates.slice(0, -1);
+          _detected.dates = cleanDates.slice();
         }
       }
     }
