@@ -219,6 +219,8 @@ tr:hover{background:rgba(56,189,248,.05)}
 </head>
 <body>
 
+<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v17</div>
+
 <header>
   <h1><span class="full-title">일정요약 앱</span></h1>
   <div class="header-right">
@@ -772,6 +774,14 @@ const STATUS_LABELS = {confirmed:'확정',tentative:'가예약',progress:'진행
 const STATUS_COLORS = {confirmed:'#22c55e',tentative:'#eab308',progress:'#3b82f6',completed:'#94a3b8',cancelled:'#ef4444'};
 const ROOM_TYPES = ['Twin','Single','Triple','Suite'];
 const CURRENCIES = ['KZT','USD','KRW','RUB'];
+const APP_VERSION = 'v17-booking-cal-trace';
+console.log('[APP_VERSION]', APP_VERSION);
+window.APP_VERSION = APP_VERSION;
+// 화면 모서리 배지에도 정확한 버전 반영
+try{
+  const _vbadge = document.getElementById('appVersionBadge');
+  if(_vbadge) _vbadge.textContent = APP_VERSION;
+}catch(e){}
 
 let db = loadDB();
 
@@ -1800,10 +1810,18 @@ function detectPlaces(text){
   return Array.from(places).slice(0,20);
 }
 
-// 인식된 날짜 칩의 ✕ 버튼에서 호출 — 그 날짜만 _detected.dates 에서 빼고 다시 그림
-function removeDetectedDate(d){
+// 인식된 날짜 칩 동작 — 본문 클릭 = 수정 모달, ✕ 클릭 = 삭제
+let _editingDetectedDate = null;
+
+// ✕ 버튼 onclick="removeDetectedDate(event, '날짜')" — 부모 칩의 onclick 으로
+// 이벤트가 전파돼 수정 모달이 같이 열리지 않도록 stopPropagation 필수.
+function removeDetectedDate(event, d){
+  if(event){
+    if(typeof event.preventDefault === 'function') event.preventDefault();
+    if(typeof event.stopPropagation === 'function') event.stopPropagation();
+  }
+  console.log('[DATE CHIP] remove date:', d);
   _detected.dates = (_detected.dates||[]).filter(x => x !== d);
-  // 도착일/출국일 입력에 그 날짜가 들어 있으면 같이 비움 (아니면 그대로 둠)
   const arrEl = document.getElementById('imp_arrival');
   const depEl = document.getElementById('imp_departure');
   if(arrEl && arrEl.value === d) arrEl.value = '';
@@ -1812,12 +1830,43 @@ function removeDetectedDate(d){
   if(typeof _refreshImportDateBtn === 'function') _refreshImportDateBtn();
 }
 
+// 칩 본문 클릭 시 — 그 날짜를 기준으로 단일 날짜 수정 모달 오픈.
+// 사용자가 새 날짜 탭 → 적용 누르면 기존 날짜를 새 날짜로 교체.
+function editDetectedDate(d){
+  console.log('[DATE CHIP] edit date:', d);
+  _editingDetectedDate = d;
+  openRangePicker(d, d, function(newStart, _newEnd){
+    if(_editingDetectedDate && newStart && newStart !== _editingDetectedDate){
+      replaceDetectedDate(_editingDetectedDate, newStart);
+    }
+    _editingDetectedDate = null;
+  }, { title: `'${d}' → 다른 날짜로 수정`, mode: 'single' });
+}
+
+function replaceDetectedDate(oldDate, newDate){
+  if(!oldDate || !newDate || oldDate === newDate) return;
+  console.log('[DATE CHIP] replace', oldDate, '→', newDate);
+  const arr = (_detected.dates||[]).map(x => x === oldDate ? newDate : x);
+  // 중복 제거 + 정렬
+  _detected.dates = Array.from(new Set(arr)).sort();
+  // 도착·출국 input 에 oldDate 들어 있으면 같이 갱신
+  const arrEl = document.getElementById('imp_arrival');
+  const depEl = document.getElementById('imp_departure');
+  if(arrEl && arrEl.value === oldDate) arrEl.value = newDate;
+  if(depEl && depEl.value === oldDate) depEl.value = newDate;
+  renderDetected();
+  if(typeof _refreshImportDateBtn === 'function') _refreshImportDateBtn();
+}
+
 function renderDetected(){
   const dEl = document.getElementById('detectedDates');
   const ar = document.getElementById('imp_arrival') ? document.getElementById('imp_arrival').value : '';
   const dep = document.getElementById('imp_departure') ? document.getElementById('imp_departure').value : '';
+  // 칩 본문(텍스트) 클릭 = editDetectedDate (날짜 수정 모달)
+  // ✕ 버튼 클릭 = removeDetectedDate (그 날짜만 삭제)
+  // ✕ 의 event.stopPropagation 으로 부모 칩 onclick 이 같이 발동하지 않게 함.
   const chipHtml = _detected.dates.length
-    ? _detected.dates.map(d=>`<span class="tag" style="display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#fff;padding:4px 4px 4px 10px;margin:2px"><span style="cursor:pointer" onclick="setImportRange('${d}')">${d}</span><span onclick="event.stopPropagation();removeDetectedDate('${d}')" style="cursor:pointer;background:rgba(255,255,255,.3);width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;line-height:1;user-select:none" title="이 날짜 제거">×</span></span>`).join('')
+    ? _detected.dates.map(d=>`<span class="detected-date-chip tag" data-date="${d}" onclick="editDetectedDate('${d}')" style="display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#fff;padding:4px 4px 4px 10px;margin:2px;cursor:pointer" title="탭하여 수정"><span class="detected-date-text">${d}</span><button type="button" class="detected-date-remove" onclick="removeDetectedDate(event, '${d}')" title="이 날짜 제거" style="cursor:pointer;background:rgba(255,255,255,.3);border:none;width:22px;height:22px;border-radius:50%;color:#fff;font-size:15px;font-weight:700;line-height:1;padding:0;display:inline-flex;align-items:center;justify-content:center;user-select:none">×</button></span>`).join('')
     : '<span class="muted" style="font-size:12px">자동 인식 안됨</span>';
   // 도착일 / 출국일 표시 박스를 누르면 booking.com 스타일 range picker 가
   // 떠 두 날짜를 한 번에 고를 수 있게 한다 (네이티브 단일 날짜 picker 안 씀).
@@ -2086,25 +2135,32 @@ let _rangeState = null;
 
 function openRangePicker(initialStart, initialEnd, onApply, opts){
   opts = opts || {};
+  console.log('[CALENDAR] openRangePicker called', {start:initialStart, end:initialEnd, title:opts.title, mode:opts.mode||'range', APP_VERSION});
   _rangeState = {
     start: initialStart || null,
     end: initialEnd || null,
     cursor: new Date(initialStart || new Date()),
     onApply: onApply,
-    title: opts.title || '날짜 선택'
+    title: opts.title || '날짜 선택',
+    mode: opts.mode || 'range'   // 'range' 또는 'single' (날짜 칩 수정 모드)
   };
   _rangeState.cursor.setDate(1);
   document.getElementById('rangeModalTitle').textContent = _rangeState.title;
+  // 새로 열 때 이전 picker 의 scroll 흔적이 남지 않도록 body 한 번 비움
+  // → renderRangePicker 가 prevScroll=null 로 인식하고 cursor 월로 자동 스크롤
+  document.getElementById('rangeModalBody').innerHTML = '';
   renderRangePicker();
-  // 첫 렌더 후 cursor 월이 화면 중앙쯤에 보이도록 스크롤
-  setTimeout(scrollRangePickerToCursor, 0);
   openModal('rangeModal');
 }
 
 // booking.com 식 — 여러 달을 세로로 길게 쌓아서 자연스러운 스크롤로 이동
 // 이전/다음 버튼 없음. 손가락 위·아래로 쓸어 다른 달 보기.
 function renderRangePicker(){
+  console.log('[CALENDAR] renderRangePicker NEW booking-style called', {APP_VERSION});
   const s = _rangeState; if(!s)return;
+  // 다시 그릴 때 사용자가 스크롤한 위치 유지 (innerHTML 교체로 reset 되는 것 방지)
+  const prevScroll = document.getElementById('rangePickerScroll');
+  const savedScrollTop = prevScroll ? prevScroll.scrollTop : null;
   const today = localISO(new Date());
   const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
   // cursor 기준 ±18 개월, 총 36 개월 렌더 (3년치)
@@ -2146,6 +2202,12 @@ function renderRangePicker(){
   else statusText = `✓ <strong>${s.start}</strong> ~ <strong>${s.end}</strong> · ${nights}박`;
   html += `<div style="margin-top:12px;padding:10px;background:var(--panel2);border-radius:8px;text-align:center;font-size:13px">${statusText}</div>`;
   document.getElementById('rangeModalBody').innerHTML = html;
+  // 스크롤 위치 복원 (없었으면 cursor 월로 자동 스크롤)
+  const newScroll = document.getElementById('rangePickerScroll');
+  if(newScroll){
+    if(savedScrollTop !== null){ newScroll.scrollTop = savedScrollTop; }
+    else { setTimeout(scrollRangePickerToCursor, 0); }
+  }
 }
 
 function scrollRangePickerToCursor(){
@@ -2156,7 +2218,12 @@ function scrollRangePickerToCursor(){
 
 function rangeDayClick(ds){
   const s = _rangeState; if(!s)return;
-  if(!s.start || (s.start && s.end)){
+  console.log('[CALENDAR] rangeDayClick', {date:ds, mode:s.mode});
+  if(s.mode === 'single'){
+    // 단일 날짜 모드 (날짜 칩 수정): 첫 탭이 새 값
+    s.start = ds;
+    s.end = ds;
+  } else if(!s.start || (s.start && s.end)){
     // Start fresh
     s.start = ds;
     s.end = null;
@@ -2169,6 +2236,7 @@ function rangeDayClick(ds){
     }
   }
   renderRangePicker();
+  // 새 cursor 도 따라 움직이지 않음 (booking.com 식 — 사용자가 스크롤한 위치 유지)
 }
 
 function changeRangeMonth(delta){
