@@ -595,8 +595,11 @@ tr:hover{background:rgba(56,189,248,.05)}
           </div>
         </div>
         <div class="grid4">
-          <div class="field"><label>도착일 (자동)</label><input id="imp_arrival" type="date"></div>
-          <div class="field"><label>출국일 (자동)</label><input id="imp_departure" type="date"></div>
+          <div class="field" style="grid-column:span 2"><label>도착 ~ 출국 일자</label>
+            <input id="imp_arrival" type="hidden">
+            <input id="imp_departure" type="hidden">
+            <button type="button" id="imp_dateBtn" class="date-pick-btn placeholder" onclick="openImportDateRange()">📅 (탭하여 도착·출국 일자 선택)</button>
+          </div>
           <div class="field"><label>인원수</label><input id="imp_people" type="number" min="1" value="1"></div>
           <div class="field"><label>상태</label>
             <select id="imp_status">
@@ -1804,22 +1807,18 @@ function renderDetected(){
   const chipHtml = _detected.dates.length
     ? _detected.dates.map(d=>`<span class="tag" style="cursor:pointer;background:var(--accent);color:#fff" onclick="setImportRange('${d}')">${d}</span>`).join(' ')
     : '<span class="muted" style="font-size:12px">자동 인식 안됨</span>';
-  // 자동 인식 결과 옆에 직접 수정용 입력칸. 큰 [도착 ~ 출국] 선택 버튼을
-  // 누르면 booking.com 스타일 range picker 가 떠 두 날짜를 한 번에 고를 수 있고,
-  // 아래 두 type=date 입력은 fine-grain 으로 한 쪽만 바꾸고 싶을 때 쓰도록 둠.
-  const rangeLabel = (ar && dep && ar!==dep)
-    ? `📅 ${ar} ~ ${dep} (${nightsBetween(ar,dep)}박)`
-    : (ar ? `📅 ${ar} ~ ?` : '📅 도착 ~ 출국 일자 선택 (탭)');
+  // 도착일 / 출국일 표시 박스를 누르면 booking.com 스타일 range picker 가
+  // 떠 두 날짜를 한 번에 고를 수 있게 한다 (네이티브 단일 날짜 picker 안 씀).
+  const fmt = (d) => d ? `📅 ${d}` : '📅 (탭하여 선택)';
   dEl.innerHTML = `
     <div>${chipHtml}</div>
-    <div class="muted" style="font-size:11px;margin-top:6px">자동 인식이 틀렸으면 ↓ 직접 수정 (위 칩 클릭으로도 채워짐)</div>
-    <button type="button" class="date-pick-btn ${(ar&&dep)?'':'placeholder'}" style="margin-top:6px" onclick="openImportDateRange()">${rangeLabel}</button>
+    <div class="muted" style="font-size:11px;margin-top:6px">자동 인식이 틀렸으면 ↓ 도착·출국 박스를 탭해 한 번에 두 날짜 선택</div>
     <div class="grid2" style="margin-top:6px;gap:8px">
       <div class="field" style="margin-bottom:0"><label style="font-size:11px">도착일</label>
-        <input type="date" value="${ar||''}" oninput="(function(v){const a=document.getElementById('imp_arrival');if(a)a.value=v;renderDetected();})(this.value)">
+        <button type="button" class="date-pick-btn ${ar?'':'placeholder'}" onclick="openImportDateRange()">${fmt(ar)}</button>
       </div>
       <div class="field" style="margin-bottom:0"><label style="font-size:11px">출국일</label>
-        <input type="date" value="${dep||''}" oninput="(function(v){const a=document.getElementById('imp_departure');if(a)a.value=v;renderDetected();})(this.value)">
+        <button type="button" class="date-pick-btn ${dep?'':'placeholder'}" onclick="openImportDateRange()">${fmt(dep)}</button>
       </div>
     </div>`;
   const hEl = document.getElementById('detectedHotels');
@@ -1838,8 +1837,26 @@ function openImportDateRange(){
   openRangePicker(start, end, (s,e)=>{
     if(document.getElementById('imp_arrival'))   document.getElementById('imp_arrival').value = s||'';
     if(document.getElementById('imp_departure')) document.getElementById('imp_departure').value = e||s||'';
-    renderDetected();
+    _refreshImportDateBtn();
+    try{ renderDetected(); }catch(e){}
   }, {title:'도착 ~ 출국 일자 선택'});
+}
+
+function _refreshImportDateBtn(){
+  const btn = document.getElementById('imp_dateBtn');
+  if(!btn) return;
+  const ar = (document.getElementById('imp_arrival')||{}).value || '';
+  const dep = (document.getElementById('imp_departure')||{}).value || '';
+  if(ar && dep && ar !== dep){
+    btn.textContent = `📅 ${ar} ~ ${dep} (${nightsBetween(ar,dep)}박)`;
+    btn.classList.remove('placeholder');
+  } else if(ar){
+    btn.textContent = `📅 ${ar}${dep===ar?' (당일)':' ~ ?'}`;
+    btn.classList.remove('placeholder');
+  } else {
+    btn.textContent = '📅 (탭하여 도착·출국 일자 선택)';
+    btn.classList.add('placeholder');
+  }
 }
 
 function setImportRange(d){
@@ -1848,8 +1865,9 @@ function setImportRange(d){
   if(!ar) document.getElementById('imp_arrival').value = d;
   else if(!dep || d>ar) document.getElementById('imp_departure').value = d;
   else document.getElementById('imp_arrival').value = d;
-  // 미러 input(자동 인식 결과 옆) 갱신
+  // 미러 input(자동 인식 결과 옆) + 하단 큰 버튼 라벨 모두 갱신
   try{ renderDetected(); }catch(e){}
+  _refreshImportDateBtn();
 }
 
 function prefillImportForm(){
@@ -1879,6 +1897,7 @@ function prefillImportForm(){
 
     document.getElementById('imp_arrival').value = arrival;
     document.getElementById('imp_departure').value = departure;
+    _refreshImportDateBtn();
   }
 
   if(_detected.hotels.length >= 1){
@@ -2033,6 +2052,7 @@ function cancelImport(){
   document.getElementById('imp_clientName').value = '';
   document.getElementById('imp_arrival').value = '';
   document.getElementById('imp_departure').value = '';
+  _refreshImportDateBtn();
   document.getElementById('imp_people').value = 1;
   document.getElementById('imp_places').value = '';
   document.getElementById('imp_notes').value = '';
