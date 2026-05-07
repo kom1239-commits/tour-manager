@@ -219,7 +219,7 @@ tr:hover{background:rgba(56,189,248,.05)}
 </head>
 <body>
 
-<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v21</div>
+<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v22</div>
 
 <header>
   <h1><span class="full-title">일정요약 앱</span></h1>
@@ -774,7 +774,7 @@ const STATUS_LABELS = {confirmed:'확정',tentative:'가예약',progress:'진행
 const STATUS_COLORS = {confirmed:'#22c55e',tentative:'#eab308',progress:'#3b82f6',completed:'#94a3b8',cancelled:'#ef4444'};
 const ROOM_TYPES = ['Twin','Single','Triple','Suite'];
 const CURRENCIES = ['KZT','USD','KRW','RUB'];
-const APP_VERSION = 'v21-airport-cutoff';
+const APP_VERSION = 'v22-place-name-allow';
 console.log('[APP_VERSION]', APP_VERSION);
 window.APP_VERSION = APP_VERSION;
 // 화면 모서리 배지에도 정확한 버전 반영
@@ -5322,17 +5322,29 @@ function parseScheduleByDay(t){
     }
   }
 
-  // ===== 2순위: 라인 단위 필터 — 동작 키워드 OK / 설명문 OUT =====
-  const VALID_KEYWORDS = /이동|관광|방문|도착|출발|체험|산책|체크인|투숙|경유|조식|중식|석식|호텔|공항|자유\s*시간|전용\s*차량|전용차|픽업|샌딩|미팅/;
+  // ===== 2순위: 라인 단위 필터 — 동작 키워드 OK / 설명문 OUT / 관광지 명칭 OK =====
+  const VALID_KEYWORDS = /이동|관광|방문|도착|출발|체험|산책|체크인|투숙|경유|조식|중식|석식|호텔|공항|자유\s*시간|전용\s*차량|전용차|픽업|샌딩|미팅|하이킹|트레킹|탑승|관람|입장|투어/;
   const DESCRIPTIVE_PATTERNS = /로\s*유명|로\s*알려진|라는\s*뜻|을\s*의미|를\s*의미|유네스코|세계\s*문화\s*유산|세계\s*자연\s*유산|중앙\s*아시아|여러\s*나라|대표적인|아름다운|웅장한|역사적인|관광객들에게\s*인기|자랑하는|위치한|해발|면적|길이|고도/;
+  // 사용자 명시 — '카인디는 명칭이잖아 명칭 관광지'.
+  // 동작 키워드 없어도 라인이 관광지 명칭이면 살려준다. 짧고(≤30자) 다음 둘 중 하나:
+  //   1) 끝이 장소 접미사 — 호수/공원/캐년/협곡/온천/마을/거리/광장/공항/박물관/...
+  //   2) 알마티 트립 주요 관광지 명칭 substring — 카인디/콜사이/차른/이식/...
+  const PLACE_SUFFIX = /(?:호수|공원|캐년|협곡|온천|마을|거리|광장|박물관|성당|시장|바자르|사원|궁전|타워|전망대|폭포|계곡|동물원|식물원|기념관|기념탑|모스크|성|역|다리|섬|폭포|강|산)$/;
+  const KNOWN_PLACE_KEYWORDS = /콜사이|카인디|차른|이식|빅알마티|아유사이|콕토베|아르바트|판필로브|젠코바|첸코바|신장|위그르|침블락|침불락|메데우|실로암|질뇨니|첼로남|메르키|타지|아스타나|투르키스탄|불칸/;
 
   function isValidScheduleLine(line){
     const s = String(line||'').trim().replace(/^[•·\-*✓▷▶■●◆\s\-]+/, '').trim();
     if(!s) return false;
     if(s.length > 200) return false;
     if(DESCRIPTIVE_PATTERNS.test(s)) return false;
-    if(!VALID_KEYWORDS.test(s)) return false;
-    return true;
+    if(VALID_KEYWORDS.test(s)) return true;
+    // 동작 키워드 없어도 짧고 관광지 명칭/접미사 매치하면 OK
+    if(s.length <= 30){
+      const compact = s.replace(/\s+/g, '');
+      if(PLACE_SUFFIX.test(compact)) return true;
+      if(KNOWN_PLACE_KEYWORDS.test(compact)) return true;
+    }
+    return false;
   }
 
   // ===== 3순위: 같은 날짜의 segment 합치고 라인 단위 dedup =====
