@@ -219,7 +219,7 @@ tr:hover{background:rgba(56,189,248,.05)}
 </head>
 <body>
 
-<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v23</div>
+<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v24</div>
 
 <header>
   <h1><span class="full-title">일정요약 앱</span></h1>
@@ -774,7 +774,7 @@ const STATUS_LABELS = {confirmed:'확정',tentative:'가예약',progress:'진행
 const STATUS_COLORS = {confirmed:'#22c55e',tentative:'#eab308',progress:'#3b82f6',completed:'#94a3b8',cancelled:'#ef4444'};
 const ROOM_TYPES = ['Twin','Single','Triple','Suite'];
 const CURRENCIES = ['KZT','USD','KRW','RUB'];
-const APP_VERSION = 'v23-client-focus-twin-single';
+const APP_VERSION = 'v24-entity-scope';
 console.log('[APP_VERSION]', APP_VERSION);
 window.APP_VERSION = APP_VERSION;
 // 화면 모서리 배지에도 정확한 버전 반영
@@ -3363,12 +3363,33 @@ function renderClientsTable(){
 }
 
 // ========== ENTITY DETAIL VIEWS (click client/hotel/guide → see history) ==========
-function renderCompactTeamRow(t){
+function renderCompactTeamRow(t, opts){
+  opts = opts || {};
   const total = (t.adults||0)+(t.children||0)+(t.infants||0);
   const bal = computeBalanceBase(t);
   const hotels = (t.hotelStays||[]).map(s=>hotelName(s.hotelId)).filter(x=>x!=='-').join(', ')||'-';
   const guides = (t.guideAssignments||[]).map(g=>guideName(g.guideId)).filter(x=>x!=='-').join(', ')||'-';
   const places = (t.visitPlaces||[]).slice(0,3).join(', ')+((t.visitPlaces||[]).length>3?` 외 ${(t.visitPlaces||[]).length-3}곳`:'');
+  // 호텔/가이드 detail 에서 호출되면 그 entity 의 실제 기간만 표시
+  let displayStart = t.arrivalDate, displayEnd = t.departureDate, scopeNote = '';
+  if(opts.hotelId){
+    const stay = (t.hotelStays||[]).find(s => s.hotelId === opts.hotelId);
+    if(stay){
+      displayStart = stay.checkIn  || displayStart;
+      displayEnd   = stay.checkOut || displayEnd;
+      const roomTotal = (stay.rooms||[]).reduce((sum,r)=>sum+(+r.count||0),0);
+      scopeNote = `🏨 ${hotelName(opts.hotelId)} 숙박${roomTotal?` · ${roomTotal}객실`:''}`;
+    }
+  } else if(opts.guideId){
+    const ga = (t.guideAssignments||[]).find(g => g.guideId === opts.guideId);
+    if(ga){
+      displayStart = ga.dateStart || displayStart;
+      displayEnd   = ga.dateEnd   || displayEnd;
+      const gc = +ga.guideCount || 1;
+      scopeNote = `🧭 ${guideName(opts.guideId)} 가이드 ${gc}명`;
+    }
+  }
+  const periodNights = nightsBetween(displayStart, displayEnd);
   return `<div class="list-row" style="cursor:pointer" onclick="openTeamModal('${t.id}')">
     <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">
       <div>
@@ -3376,8 +3397,9 @@ function renderCompactTeamRow(t){
         <strong>${escapeHtml(t.name)}</strong>
         ${statusBadge(t.status)}
       </div>
-      <div class="muted" style="font-size:12px">${t.arrivalDate||'-'} ~ ${t.departureDate||'-'} (${nightsBetween(t.arrivalDate,t.departureDate)}박)</div>
+      <div class="muted" style="font-size:12px"><strong style="color:var(--accent)">${displayStart||'-'} ~ ${displayEnd||'-'}</strong> (${periodNights}박)</div>
     </div>
+    ${scopeNote?`<div style="font-size:12px;color:#0369a1;margin-bottom:4px;font-weight:600">${scopeNote}</div>`:''}
     <div style="font-size:12px;line-height:1.8">
       <span class="tag">👥 ${total}명</span>
       <span class="tag">🏨 ${escapeHtml(hotels)}</span>
@@ -3501,7 +3523,7 @@ function showHotelDetail(hotelId){
       <div class="stat"><div class="lbl">객실박</div><div class="val">${totalRoomNights}</div></div>
     </div>
     <h3 style="margin-top:20px">이용 팀 목록 (최근순) — 클릭하면 편집 가능</h3>
-    ${teams.length===0 ? '<div class="empty">사용 이력이 없습니다.</div>' : teams.map(renderCompactTeamRow).join('')}
+    ${teams.length===0 ? '<div class="empty">사용 이력이 없습니다.</div>' : teams.map(t=>renderCompactTeamRow(t, {hotelId})).join('')}
   </div>`;
   document.getElementById('hotelDetailPanel').innerHTML = html;
   document.getElementById('hotelDetailPanel').scrollIntoView({behavior:'smooth',block:'start'});
@@ -3542,7 +3564,7 @@ function showGuideDetail(guideId){
       <div class="stat"><div class="lbl">미지급 가이드비</div><div class="val" style="color:${unpaidTotal>0?'#fca5a5':'inherit'}">${fmtMoney(unpaidTotal,db.settings.baseCurrency)}</div></div>
     </div>
     <h3 style="margin-top:20px">활동 팀 목록 (최근순) — 클릭하면 편집 가능</h3>
-    ${teams.length===0 ? '<div class="empty">활동 이력이 없습니다.</div>' : teams.map(renderCompactTeamRow).join('')}
+    ${teams.length===0 ? '<div class="empty">활동 이력이 없습니다.</div>' : teams.map(t=>renderCompactTeamRow(t, {guideId})).join('')}
   </div>`;
   document.getElementById('guideDetailPanel').innerHTML = html;
   document.getElementById('guideDetailPanel').scrollIntoView({behavior:'smooth',block:'start'});
@@ -3673,6 +3695,7 @@ function renderCalendar(){
       if(lane >= MAX_LANES){ overflowCount++; continue; }
       // 띠는 실제 방문 활동이 있는 날까지만 — 마지막 날이 알마티 공항 출발만
       // 있다면 그 다음날 띠를 그리지 않도록 last-active-date 로 segEnd 클램프.
+      let effectiveStart = t.arrivalDate;
       let effectiveEnd = t.departureDate;
       try{
         const struct = parseScheduleStructured(t);
@@ -3685,8 +3708,23 @@ function renderCalendar(){
           if(lastActive && lastActive < effectiveEnd) effectiveEnd = lastActive;
         }
       }catch(e){}
-      if(effectiveEnd < weekStart) continue; // 이 주에는 활동 없음
-      const segStart = t.arrivalDate < weekStart ? weekStart : t.arrivalDate;
+      // 호텔/가이드 필터 시 — 그 entity 의 실제 기간만 그림
+      // (사용자: '리가르달 일정만 나와야지' / 가이드는 표시한 대로)
+      if(_calendarFilterHotelId){
+        const stay = (t.hotelStays||[]).find(s => s.hotelId === _calendarFilterHotelId);
+        if(stay){
+          if(stay.checkIn)  effectiveStart = stay.checkIn;
+          if(stay.checkOut) effectiveEnd   = stay.checkOut;
+        }
+      } else if(_calendarFilterGuideId){
+        const ga = (t.guideAssignments||[]).find(g => g.guideId === _calendarFilterGuideId);
+        if(ga){
+          if(ga.dateStart) effectiveStart = ga.dateStart;
+          if(ga.dateEnd)   effectiveEnd   = ga.dateEnd;
+        }
+      }
+      if(effectiveEnd < weekStart || effectiveStart > weekEnd) continue; // 이 주에는 활동 없음
+      const segStart = effectiveStart < weekStart ? weekStart : effectiveStart;
       const segEnd   = effectiveEnd > weekEnd ? weekEnd : effectiveEnd;
       if(segEnd < segStart) continue;
       const startCol = nightsBetween(weekStart, segStart);  // 0..6
@@ -3694,7 +3732,7 @@ function renderCalendar(){
       const leftPct  = (startCol/7)*100;
       const widthPct = ((endCol - startCol + 1)/7)*100;
       const top = LANE_TOP_OFFSET + lane*LANE_HEIGHT;
-      const radL = (t.arrivalDate >= weekStart) ? '6px' : '0';
+      const radL = (effectiveStart >= weekStart) ? '6px' : '0';
       const radR = (effectiveEnd <= weekEnd) ? '6px' : '0';
       // 침블락 별표 — segment 안에 침블락 가는 날짜가 있으면 그 위치에 ★ 배지
       const chimbDates = (typeof detectChimbulakDates === 'function') ? new Set(detectChimbulakDates(t)) : new Set();
@@ -3706,7 +3744,18 @@ function renderCalendar(){
           starHtml += `<span style="position:absolute;left:${starLeft}%;top:0;transform:translateX(-50%);background:#fff;color:#dc2626;font-weight:900;border-radius:50%;width:12px;height:12px;line-height:12px;text-align:center;font-size:9px;box-shadow:0 0 0 1px #dc2626;pointer-events:none">★</span>`;
         }
       }
-      const tip = `${escapeHtml(t.name)} · ${escapeHtml(clientName(t.clientId))} · ${t.arrivalDate}~${t.departureDate}`;
+      let scopeTip = '';
+      if(_calendarFilterHotelId){
+        const stay = (t.hotelStays||[]).find(s => s.hotelId === _calendarFilterHotelId);
+        if(stay){
+          const roomTotal = (stay.rooms||[]).reduce((sum,r)=>sum+(+r.count||0),0);
+          scopeTip = ` · 🏨 ${effectiveStart}~${effectiveEnd}${roomTotal?` (${roomTotal}객실)`:''}`;
+        }
+      } else if(_calendarFilterGuideId){
+        const ga = (t.guideAssignments||[]).find(g => g.guideId === _calendarFilterGuideId);
+        if(ga){ scopeTip = ` · 🧭 ${effectiveStart}~${effectiveEnd} (${+ga.guideCount||1}명)`; }
+      }
+      const tip = `${escapeHtml(t.name)} · ${escapeHtml(clientName(t.clientId))} · ${t.arrivalDate}~${t.departureDate}${scopeTip}`;
       bandsHtml += `<div class="cal-band" data-team="${t.id}" title="${tip}" style="left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px);top:${top}px;background:${t.color||'#3b82f6'};border-top-left-radius:${radL};border-bottom-left-radius:${radL};border-top-right-radius:${radR};border-bottom-right-radius:${radR}">${starHtml}${escapeHtml(t.name)}</div>`;
     }
     if(overflowCount > 0){
