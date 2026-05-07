@@ -4886,8 +4886,8 @@ function cleanPlaceCandidate(text){
     .replace(/차른강/g, '차른 캐년')
     .replace(/카인디\s*호수\s*오프로드/g, '카인디 호수')
     .trim();
-  // 침블락 별표 처리 (중복 ⭐ 방지)
-  if(/침블락/i.test(s)) s = '⭐ 침블락';
+  // 침블락 정규화 — 별표는 렌더 단계에서만 추가하므로 데이터엔 '침블락' 만 저장
+  if(/침블락|침불락/i.test(s)) s = '침블락';
   // 공항 처리
   if(/알마티\s*국제\s*공항|알마티\s*공항|공항\s*이동|공항\s*출발/.test(s)){
     s = '알마티 공항';
@@ -4932,7 +4932,8 @@ function looksLikePlaceCandidate(s){
 
 function normalizeDuplicatePlaceName(s){
   s = String(s || '').trim();
-  if(/침블락/.test(s)) return '⭐ 침블락';
+  // 침블락 — 별표는 렌더링에서만 붙이고 데이터엔 '침블락' 만 저장
+  if(/침블락|침불락/.test(s)) return '침블락';
   if(/콜사이/.test(s) && /호수/.test(s)) return '콜사이 호수';
   if(/^콜사이$/.test(s)) return '';
   if(/카인디/.test(s) && /호수/.test(s)) return '카인디 호수';
