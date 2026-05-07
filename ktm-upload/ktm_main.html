@@ -634,19 +634,24 @@
     map = L.map('map', {
       center: [43.45, 77.95],
       zoom: 8,
-      minZoom: 6,
-      maxZoom: 14,
+      minZoom: 5,
+      maxZoom: 19,
       zoomControl: false,
       scrollWheelZoom: true,
       attributionControl: true
     });
 
-    // Primary: Esri World Topo Map (matches the screenshot style)
+    // Primary: CARTO Voyager — clean OSM-derived raster tiles, lots of
+    // street/building detail at high zoom (matches the OpenMapTiles look).
     var primary = L.tileLayer(
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-      { attribution: 'Tiles © Esri', maxZoom: 18 }
+      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+      {
+        attribution: '© OpenStreetMap © CARTO',
+        subdomains: 'abcd',
+        maxZoom: 20
+      }
     );
-    // Fallback: OpenStreetMap (used if Esri tiles error out)
+    // Fallback: OpenStreetMap standard (used if CARTO tiles error out)
     var fallback = L.tileLayer(
       'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       { attribution: '© OpenStreetMap', maxZoom: 19 }
