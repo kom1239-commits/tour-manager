@@ -3451,15 +3451,31 @@ function renderCalendar(){
       const lane = (window._teamLanes||{})[t.id];
       if(typeof lane !== 'number'){ overflowCount++; continue; }
       if(lane >= MAX_LANES){ overflowCount++; continue; }
+      // 띠는 실제 방문 활동이 있는 날까지만 — 마지막 날이 알마티 공항 출발만
+      // 있다면 그 다음날 띠를 그리지 않도록 last-active-date 로 segEnd 클램프.
+      let effectiveEnd = t.departureDate;
+      try{
+        const struct = parseScheduleStructured(t);
+        if(struct && Array.isArray(struct.daily_schedule)){
+          let lastActive = '';
+          for(const d of struct.daily_schedule){
+            const hasContent = ((d&&d.point_tags)||[]).length || normalizeDetails(d&&d.details).length;
+            if(hasContent && d.date) lastActive = d.date;
+          }
+          if(lastActive && lastActive < effectiveEnd) effectiveEnd = lastActive;
+        }
+      }catch(e){}
+      if(effectiveEnd < weekStart) continue; // 이 주에는 활동 없음
       const segStart = t.arrivalDate < weekStart ? weekStart : t.arrivalDate;
-      const segEnd   = t.departureDate > weekEnd ? weekEnd : t.departureDate;
+      const segEnd   = effectiveEnd > weekEnd ? weekEnd : effectiveEnd;
+      if(segEnd < segStart) continue;
       const startCol = nightsBetween(weekStart, segStart);  // 0..6
       const endCol   = nightsBetween(weekStart, segEnd);    // 0..6
       const leftPct  = (startCol/7)*100;
       const widthPct = ((endCol - startCol + 1)/7)*100;
       const top = LANE_TOP_OFFSET + lane*LANE_HEIGHT;
       const radL = (t.arrivalDate >= weekStart) ? '6px' : '0';
-      const radR = (t.departureDate <= weekEnd) ? '6px' : '0';
+      const radR = (effectiveEnd <= weekEnd) ? '6px' : '0';
       // 침블락 별표 — segment 안에 침블락 가는 날짜가 있으면 그 위치에 ★ 배지
       const chimbDates = (typeof detectChimbulakDates === 'function') ? new Set(detectChimbulakDates(t)) : new Set();
       let starHtml = '';
