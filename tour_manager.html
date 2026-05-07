@@ -2084,7 +2084,37 @@ function openRangePicker(initialStart, initialEnd, onApply, opts){
   _rangeState.cursor.setDate(1);
   document.getElementById('rangeModalTitle').textContent = _rangeState.title;
   renderRangePicker();
+  setupRangePickerSwipe();
   openModal('rangeModal');
+}
+
+// 손가락으로 좌/우 스와이프하면 월 이동. 한 번만 등록 (idempotent).
+let _rangePickerSwipeReady = false;
+function setupRangePickerSwipe(){
+  if(_rangePickerSwipeReady) return;
+  const body = document.getElementById('rangeModalBody');
+  if(!body) return;
+  _rangePickerSwipeReady = true;
+  let sx=0, sy=0, st=0, tracking=false;
+  body.addEventListener('touchstart', e => {
+    if(e.touches.length !== 1) { tracking = false; return; }
+    const t = e.touches[0];
+    sx = t.clientX; sy = t.clientY; st = Date.now();
+    tracking = true;
+  }, { passive: true });
+  body.addEventListener('touchend', e => {
+    if(!tracking) return;
+    tracking = false;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - sx;
+    const dy = t.clientY - sy;
+    const dt = Date.now() - st;
+    if(dt > 700) return;                       // 너무 느린 스와이프는 무시
+    if(Math.abs(dx) < 50) return;              // 50px 미만은 탭/스크롤로 간주
+    if(Math.abs(dy) > Math.abs(dx) * 0.8) return; // 세로 움직임이 크면 무시
+    if(dx < 0) changeRangeMonth(1);            // 왼쪽으로 쓸기 → 다음 달
+    else changeRangeMonth(-1);                 // 오른쪽으로 쓸기 → 이전 달
+  }, { passive: true });
 }
 
 function renderRangePicker(){
@@ -4765,6 +4795,15 @@ function splitScheduleLines(raw){
 function isDefinitelyNoiseLine(line){
   line = String(line || '').trim();
   if(!line) return true;
+  // 표 컬럼 헤더 (단어 단독 줄) — '일자/지역/교통/시간/일정/식사' 같은 row.
+  // 이 단어들이 단독으로 한 줄을 차지하면 표 헤더로 판단해서 제거.
+  if(/^(?:일\s?자|날\s?짜|지\s?역|도\s?시|교\s?통|항\s?공\s?편|항\s?공|시\s?간|일\s?정|행사내용|행\s?사|식\s?사|관광지|관\s?광|코\s?스|호텔정보|숙소정보|일정내용|코스내용)$/.test(line)) return true;
+  // 발신/수신/단체명 등 문서 메타
+  if(/^(?:발\s?신|수\s?신|발\s?송|발신일|수신일|발송일|단체명|피켓명|그룹명|상품명|행사명|행사기간|여행기간|작성자|담당자|연락처|기준)$/.test(line)) return true;
+  // '홍길동 드림' 같은 발신자 서명 줄
+  if(/^.{1,15}\s*드림$/.test(line)) return true;
+  // '카자흐스탄 3박 5일' 같은 트립 제목 줄
+  if(/^.{2,30}\s*\d+박\s*\d+일\s*$/.test(line)) return true;
   // 식사/호텔/공통정보/표 머리 제거
   if(/^(조|중|석)\s*:/.test(line)) return true;
   if(/^HOTEL\s*:/i.test(line)) return true;
@@ -5155,22 +5194,26 @@ function parseScheduleByDay(t){
   }
   // 최후의 수단: 마커가 전혀 없지만 트립이 다일짜리 → 텍스트를 줄 단위로 N등분해서
   // 1일/2일/...에 균등 분배. 사용자가 "1일이 내가 고른 날" 이라고 명시한 요구사항.
+  // 단, 문서 헤더(발신/단체명/일자·지역·교통/표 컬럼 등)는 분배 대상에서 제외해서
+  // 1일차에 메타데이터가 끼어드는 현상을 방지.
   if(!markers.length && totalDays >= 2){
-    const lines = text.split(/\n/).map(s=>s.trim()).filter(Boolean);
-    if(lines.length >= totalDays){
-      const perDay = Math.ceil(lines.length / totalDays);
+    const allLines = text.split(/\n/);
+    // 노이즈 아닌 라인만 골라서 그 라인들의 텍스트 시작 위치를 기억
+    const bodyPositions = [];
+    let cumulative = 0;
+    for(const ln of allLines){
+      const trimmed = ln.trim();
+      if(trimmed && !isDefinitelyNoiseLine(trimmed)){
+        bodyPositions.push(cumulative + (ln.length - ln.trimStart().length));
+      }
+      cumulative += ln.length + 1; // +1 for newline
+    }
+    if(bodyPositions.length >= totalDays){
+      const perDay = Math.ceil(bodyPositions.length / totalDays);
       for(let dayIdx=1; dayIdx<=totalDays; dayIdx++){
         const startLine = (dayIdx-1) * perDay;
-        if(startLine >= lines.length) break;
-        // 해당 라인의 텍스트 위치를 찾아 마커로 등록
-        let pos = 0, lineCount = 0;
-        for(const ln of text.split(/\n/)){
-          if(ln.trim()){
-            if(lineCount === startLine){ break; }
-            lineCount++;
-          }
-          pos += ln.length + 1;
-        }
+        if(startLine >= bodyPositions.length) break;
+        const pos = bodyPositions[startLine];
         push(dayIdx, pos, pos);
       }
     }
