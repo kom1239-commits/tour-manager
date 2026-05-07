@@ -4287,9 +4287,9 @@ function renderDashboard(){
   db.teams.forEach(t=>{
     if(!t.arrivalDate||t.status==='cancelled'||t.status==='completed')return;
     const diff = Math.ceil((new Date(t.arrivalDate)-now)/dayMs);
-    if(diff===1)alerts.push({lvl:'red',msg:`🔔 <strong>D-1</strong> · 내일 도착: <strong>${escapeHtml(t.name)}</strong> (${escapeHtml(clientName(t.clientId))}, ${t.adults+t.children+t.infants}명)`,id:t.id});
-    else if(diff===3)alerts.push({lvl:'yellow',msg:`🔔 <strong>D-3</strong> · 3일 후 도착: <strong>${escapeHtml(t.name)}</strong> (${escapeHtml(clientName(t.clientId))})`,id:t.id});
-    else if(diff===0)alerts.push({lvl:'red',msg:`🚨 <strong>오늘 도착</strong>: <strong>${escapeHtml(t.name)}</strong>`,id:t.id});
+    if(diff===1)alerts.push({lvl:'red',msg:`🔔 <strong>D-1</strong> · 내일 도착: <strong>${escapeHtml(t.name)}</strong> (${escapeHtml(clientName(t.clientId))}, ${t.adults+t.children+t.infants}명)`,id:t.id, sortKey:t.arrivalDate});
+    else if(diff===3)alerts.push({lvl:'yellow',msg:`🔔 <strong>D-3</strong> · 3일 후 도착: <strong>${escapeHtml(t.name)}</strong> (${escapeHtml(clientName(t.clientId))})`,id:t.id, sortKey:t.arrivalDate});
+    else if(diff===0)alerts.push({lvl:'red',msg:`🚨 <strong>오늘 도착</strong>: <strong>${escapeHtml(t.name)}</strong>`,id:t.id, sortKey:t.arrivalDate});
   });
   // Guide unassigned
   db.teams.forEach(t=>{
@@ -4297,7 +4297,7 @@ function renderDashboard(){
     if(!t.arrivalDate)return;
     const diff = Math.ceil((new Date(t.arrivalDate)-now)/dayMs);
     if(diff>=0 && diff<=14 && (!(t.guideAssignments||[]).length || (t.guideAssignments||[]).every(g=>!g.guideId))){
-      alerts.push({lvl:'yellow',msg:`⚠️ 가이드 미배정 · <strong>${escapeHtml(t.name)}</strong> (D${diff===0?'-Day':'-'+diff}, 도착 ${t.arrivalDate})`,id:t.id});
+      alerts.push({lvl:'yellow',msg:`⚠️ 가이드 미배정 · <strong>${escapeHtml(t.name)}</strong> (D${diff===0?'-Day':'-'+diff}, 도착 ${t.arrivalDate})`,id:t.id, sortKey:t.arrivalDate});
     }
   });
   // Overdue receivables (arrival passed but not fully paid)
@@ -4305,7 +4305,7 @@ function renderDashboard(){
     if(!t.departureDate)return;
     const dep = new Date(t.departureDate);
     if(dep < now && computeBalanceBase(t)>0 && t.status!=='cancelled'){
-      alerts.push({lvl:'red',msg:`💰 출국일 경과 미수금 · <strong>${escapeHtml(t.name)}</strong> · 잔액 ${fmtMoney(computeBalanceBase(t),db.settings.baseCurrency)}`,id:t.id});
+      alerts.push({lvl:'red',msg:`💰 출국일 경과 미수금 · <strong>${escapeHtml(t.name)}</strong> · 잔액 ${fmtMoney(computeBalanceBase(t),db.settings.baseCurrency)}`,id:t.id, sortKey:t.arrivalDate||t.departureDate});
     }
   });
   // Unpaid guide fees
@@ -4317,8 +4317,14 @@ function renderDashboard(){
     }
   }));
   if(unpaidGuideTotal>0){
-    alerts.push({lvl:'blue',msg:`🧭 종료된 일정의 미지급 가이드비: <strong>${fmtMoney(unpaidGuideTotal,db.settings.baseCurrency)}</strong>`,id:null});
+    alerts.push({lvl:'blue',msg:`🧭 종료된 일정의 미지급 가이드비: <strong>${fmtMoney(unpaidGuideTotal,db.settings.baseCurrency)}</strong>`,id:null, sortKey:'9999-99-99'});
   }
+  // 도착일 빠른 순으로 정렬 (날짜 없는 항목은 맨 뒤)
+  alerts.sort((a,b)=>{
+    const ka = a.sortKey || '9999-99-99';
+    const kb = b.sortKey || '9999-99-99';
+    return ka.localeCompare(kb);
+  });
   document.getElementById('alertsArea').innerHTML = alerts.length ? alerts.map(a=>
     `<div class="alert-banner alert-${a.lvl}" ${a.id?`onclick="openTeamModal('${a.id}')" style="cursor:pointer"`:''}>${a.msg}</div>`
   ).join('') : '';
