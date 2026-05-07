@@ -219,7 +219,7 @@ tr:hover{background:rgba(56,189,248,.05)}
 </head>
 <body>
 
-<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v26</div>
+<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v27</div>
 
 <header>
   <h1><span class="full-title">일정요약 앱</span></h1>
@@ -774,7 +774,7 @@ const STATUS_LABELS = {confirmed:'확정',tentative:'가예약',progress:'진행
 const STATUS_COLORS = {confirmed:'#22c55e',tentative:'#eab308',progress:'#3b82f6',completed:'#94a3b8',cancelled:'#ef4444'};
 const ROOM_TYPES = ['Twin','Single','Triple','Suite'];
 const CURRENCIES = ['KZT','USD','KRW','RUB'];
-const APP_VERSION = 'v26-checkout-day-shown';
+const APP_VERSION = 'v27-room-count-fix';
 console.log('[APP_VERSION]', APP_VERSION);
 window.APP_VERSION = APP_VERSION;
 // 화면 모서리 배지에도 정확한 버전 반영
@@ -2583,8 +2583,8 @@ function renderHotelStays(){
             <div class="grid4">
               <div class="field"><label>타입</label><select onchange="_teamWorking.hotelStays[${i}].rooms[${j}].type=this.value">
                 ${ROOM_TYPES.map(rt=>`<option value="${rt}" ${rt===r.type?'selected':''}>${rt}</option>`).join('')}</select></div>
-              <div class="field"><label>개수</label><input type="number" min="1" value="${r.count||1}" onchange="_teamWorking.hotelStays[${i}].rooms[${j}].count=+this.value"></div>
-              <div class="field"><label>1박 단가</label><input type="number" min="0" value="${r.pricePerNight||0}" onchange="_teamWorking.hotelStays[${i}].rooms[${j}].pricePerNight=+this.value"></div>
+              <div class="field"><label>개수</label><input type="number" min="0" value="${r.count != null ? r.count : 0}" oninput="_teamWorking.hotelStays[${i}].rooms[${j}].count=+this.value||0" onchange="_teamWorking.hotelStays[${i}].rooms[${j}].count=+this.value||0"></div>
+              <div class="field"><label>1박 단가</label><input type="number" min="0" value="${r.pricePerNight||0}" oninput="_teamWorking.hotelStays[${i}].rooms[${j}].pricePerNight=+this.value||0" onchange="_teamWorking.hotelStays[${i}].rooms[${j}].pricePerNight=+this.value||0"></div>
               <div class="field"><label>통화</label><select onchange="_teamWorking.hotelStays[${i}].rooms[${j}].currency=this.value">
                 ${CURRENCIES.map(c=>`<option value="${c}" ${c===(r.currency||'KZT')?'selected':''}>${c}</option>`).join('')}</select></div>
             </div>
@@ -3162,6 +3162,11 @@ function detectConflicts(team,excludeId){
 }
 
 function saveTeam(){
+  // 모바일에서 number input 의 onchange 가 발화 안 한 채 저장되는 케이스 방지
+  // (사용자가 input 에 값 입력 후 다른 곳 탭하지 않고 바로 저장 누름)
+  if(document.activeElement && typeof document.activeElement.blur === 'function'){
+    document.activeElement.blur();
+  }
   const t = collectTeamFromForm();
   if(!t.name){alert('팀명을 입력하세요');return}
   if(!t.clientId){alert('의뢰인을 입력하세요');return}
