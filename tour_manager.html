@@ -219,7 +219,7 @@ tr:hover{background:rgba(56,189,248,.05)}
 </head>
 <body>
 
-<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v20</div>
+<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v21</div>
 
 <header>
   <h1><span class="full-title">일정요약 앱</span></h1>
@@ -774,7 +774,7 @@ const STATUS_LABELS = {confirmed:'확정',tentative:'가예약',progress:'진행
 const STATUS_COLORS = {confirmed:'#22c55e',tentative:'#eab308',progress:'#3b82f6',completed:'#94a3b8',cancelled:'#ef4444'};
 const ROOM_TYPES = ['Twin','Single','Triple','Suite'];
 const CURRENCIES = ['KZT','USD','KRW','RUB'];
-const APP_VERSION = 'v20-airport-rule';
+const APP_VERSION = 'v21-airport-cutoff';
 console.log('[APP_VERSION]', APP_VERSION);
 window.APP_VERSION = APP_VERSION;
 // 화면 모서리 배지에도 정확한 버전 반영
@@ -5301,6 +5301,26 @@ function parseScheduleByDay(t){
   }
 
   if(!segments.length) return days;
+
+  // ===== 출국일 cut-off — 첫날(day 1) 제외, '알마티 공항' 이 나오는 가장 늦은
+  // dayIdx 가 출국일. 그 dayIdx 이후 segment 는 트립 끝난 다음날 정보로 보고 제거.
+  // (사용자 룰: 첫날 알마티 공항 = 입국, 그 이후 = 출국)
+  // → 트립 totalDays 가 5인데 실제 4일이어도 5일차 카드 만들어지지 않음.
+  let airportDepartureIdx = null;
+  for(const seg of segments){
+    if(seg.dayIdx === 1) continue;
+    const allText = seg.lines.join(' ');
+    if(/알마티\s*(?:국제\s*)?공항|almaty.*?airport|алматы.*?аэропорт/i.test(allText)){
+      if(airportDepartureIdx === null || seg.dayIdx > airportDepartureIdx){
+        airportDepartureIdx = seg.dayIdx;
+      }
+    }
+  }
+  if(airportDepartureIdx !== null){
+    for(let i = segments.length - 1; i >= 0; i--){
+      if(segments[i].dayIdx > airportDepartureIdx) segments.splice(i, 1);
+    }
+  }
 
   // ===== 2순위: 라인 단위 필터 — 동작 키워드 OK / 설명문 OUT =====
   const VALID_KEYWORDS = /이동|관광|방문|도착|출발|체험|산책|체크인|투숙|경유|조식|중식|석식|호텔|공항|자유\s*시간|전용\s*차량|전용차|픽업|샌딩|미팅/;
