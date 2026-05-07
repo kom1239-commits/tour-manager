@@ -219,7 +219,7 @@ tr:hover{background:rgba(56,189,248,.05)}
 </head>
 <body>
 
-<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v29</div>
+<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v30</div>
 
 <header>
   <h1><span class="full-title">일정요약 앱</span></h1>
@@ -774,7 +774,7 @@ const STATUS_LABELS = {confirmed:'확정',tentative:'가예약',progress:'진행
 const STATUS_COLORS = {confirmed:'#22c55e',tentative:'#eab308',progress:'#3b82f6',completed:'#94a3b8',cancelled:'#ef4444'};
 const ROOM_TYPES = ['Twin','Single','Triple','Suite'];
 const CURRENCIES = ['KZT','USD','KRW','RUB'];
-const APP_VERSION = 'v29-empty-room-input';
+const APP_VERSION = 'v30-star-position-fix';
 console.log('[APP_VERSION]', APP_VERSION);
 window.APP_VERSION = APP_VERSION;
 // 화면 모서리 배지에도 정확한 버전 반영
@@ -3788,13 +3788,17 @@ function renderCalendar(){
       const top = LANE_TOP_OFFSET + lane*LANE_HEIGHT;
       const radL = (effectiveStart >= weekStart) ? '6px' : '0';
       const radR = (effectiveEnd <= weekEnd) ? '6px' : '0';
-      // 침블락 별표 — segment 안에 침블락 가는 날짜가 있으면 그 위치에 ★ 배지
+      // 침블락 별표 — segment 안에 침블락 가는 날짜가 있으면 그 위치에 ★ 배지.
+      // 별은 band 의 자식 (position:absolute) 이라 band-relative 좌표로 계산해야 함.
+      // 잘못된 week-relative 좌표를 쓰면 cell 위치와 어긋남.
       const chimbDates = (typeof detectChimbulakDates === 'function') ? new Set(detectChimbulakDates(t)) : new Set();
       let starHtml = '';
+      const cellsInBand = endCol - startCol + 1;
       for(const cd of chimbDates){
         if(cd >= segStart && cd <= segEnd){
           const col = nightsBetween(weekStart, cd);
-          const starLeft = ((col + 0.5)/7)*100;
+          // band 안에서 cd 의 cell 위치 = (col - startCol). band 너비를 cellsInBand 로 나눔.
+          const starLeft = ((col - startCol + 0.5) / cellsInBand) * 100;
           starHtml += `<span style="position:absolute;left:${starLeft}%;top:0;transform:translateX(-50%);background:#fff;color:#dc2626;font-weight:900;border-radius:50%;width:12px;height:12px;line-height:12px;text-align:center;font-size:9px;box-shadow:0 0 0 1px #dc2626;pointer-events:none">★</span>`;
         }
       }
