@@ -2088,33 +2088,35 @@ function openRangePicker(initialStart, initialEnd, onApply, opts){
   openModal('rangeModal');
 }
 
-// 손가락으로 좌/우 스와이프하면 월 이동. 한 번만 등록 (idempotent).
+// 손가락으로 좌/우 스와이프하면 월 이동. 모달 전체에 한 번만 등록 (idempotent).
 let _rangePickerSwipeReady = false;
 function setupRangePickerSwipe(){
   if(_rangePickerSwipeReady) return;
-  const body = document.getElementById('rangeModalBody');
-  if(!body) return;
+  const modal = document.getElementById('rangeModal');
+  if(!modal) return;
   _rangePickerSwipeReady = true;
-  let sx=0, sy=0, st=0, tracking=false;
-  body.addEventListener('touchstart', e => {
-    if(e.touches.length !== 1) { tracking = false; return; }
-    const t = e.touches[0];
-    sx = t.clientX; sy = t.clientY; st = Date.now();
+  let sx=0, sy=0, tracking=false, fired=false;
+  modal.addEventListener('touchstart', e => {
+    if(e.touches.length !== 1) { tracking=false; return; }
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
     tracking = true;
+    fired = false;
   }, { passive: true });
-  body.addEventListener('touchend', e => {
-    if(!tracking) return;
-    tracking = false;
-    const t = e.changedTouches[0];
+  modal.addEventListener('touchmove', e => {
+    if(!tracking || fired) return;
+    const t = e.touches[0];
     const dx = t.clientX - sx;
     const dy = t.clientY - sy;
-    const dt = Date.now() - st;
-    if(dt > 700) return;                       // 너무 느린 스와이프는 무시
-    if(Math.abs(dx) < 50) return;              // 50px 미만은 탭/스크롤로 간주
-    if(Math.abs(dy) > Math.abs(dx) * 0.8) return; // 세로 움직임이 크면 무시
-    if(dx < 0) changeRangeMonth(1);            // 왼쪽으로 쓸기 → 다음 달
-    else changeRangeMonth(-1);                 // 오른쪽으로 쓸기 → 이전 달
+    if(Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2){
+      fired = true;
+      tracking = false;
+      if(dx < 0) changeRangeMonth(1);
+      else changeRangeMonth(-1);
+    }
   }, { passive: true });
+  modal.addEventListener('touchend', () => { tracking=false; fired=false; }, { passive: true });
+  modal.addEventListener('touchcancel', () => { tracking=false; fired=false; }, { passive: true });
 }
 
 function renderRangePicker(){
@@ -3767,7 +3769,8 @@ function renderTeamDetail(t){
             const point_tags = (d&&d.point_tags)||[];
             // 방문지(point_tags)가 없으면 그 날의 카드는 아예 출력하지 않음
             if(!point_tags.length) return '';
-            const star = chimbDates.has(d.date) ? ' <span style="color:#b45309;font-weight:700">⭐ 침블락</span>' : '';
+            // 침블락 표시는 오른쪽 일정 리스트의 '⭐ 침블락' 한 곳에만 — 왼쪽 라벨엔 표시 안 함
+            const star = '';
             const placeList = point_tags.map(p=>{
                 const isChimb = /침블락|침불락/.test(p);
                 const prefix = isChimb ? '⭐ ' : '📍 ';
