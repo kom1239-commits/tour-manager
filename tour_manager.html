@@ -219,7 +219,7 @@ tr:hover{background:rgba(56,189,248,.05)}
 </head>
 <body>
 
-<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v30</div>
+<div id="appVersionBadge" style="position:fixed;bottom:6px;right:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-family:monospace;z-index:9999;pointer-events:none">v31</div>
 
 <header>
   <h1><span class="full-title">일정요약 앱</span></h1>
@@ -774,7 +774,7 @@ const STATUS_LABELS = {confirmed:'확정',tentative:'가예약',progress:'진행
 const STATUS_COLORS = {confirmed:'#22c55e',tentative:'#eab308',progress:'#3b82f6',completed:'#94a3b8',cancelled:'#ef4444'};
 const ROOM_TYPES = ['Twin','Single','Triple','Suite'];
 const CURRENCIES = ['KZT','USD','KRW','RUB'];
-const APP_VERSION = 'v30-star-position-fix';
+const APP_VERSION = 'v31-guide-cost-formula';
 console.log('[APP_VERSION]', APP_VERSION);
 window.APP_VERSION = APP_VERSION;
 // 화면 모서리 배지에도 정확한 버전 반영
@@ -3011,7 +3011,14 @@ function pickOccupantsFile(i, j){
 function renderGuideAssigns(){
   const el = document.getElementById('guideAssignList');
   if(!_teamWorking.guideAssignments?.length){el.innerHTML='<div class="muted" style="font-size:12px">가이드 배정이 없습니다. <span style="color:var(--accent)">[+ 추가]</span> 버튼으로 여러 명 등록 가능 (예: 2일은 김가이드, 3일째는 이가이드)</div>';return}
-  el.innerHTML = `<datalist id="guideList">${db.guides.map(g=>`<option value="${escapeHtml(g.name)}">${(g.languages||[]).join(',')}</option>`).join('')}</datalist>` + _teamWorking.guideAssignments.map((g,i)=>`
+  el.innerHTML = `<datalist id="guideList">${db.guides.map(g=>`<option value="${escapeHtml(g.name)}">${(g.languages||[]).join(',')}</option>`).join('')}</datalist>` + _teamWorking.guideAssignments.map((g,i)=>{
+    // 가이드 비용 계산 표시 — 일당 × 일수 (5/8~5/11 = 3박 4일 = 4일 일함)
+    const days = (g.dateStart && g.dateEnd) ? (nightsBetween(g.dateStart, g.dateEnd)+1) : 0;
+    const total = (+g.dailyRate||0) * days;
+    const calcHint = (g.dateStart && g.dateEnd && g.dailyRate)
+      ? `<div style="font-size:11px;color:#0369a1;margin-top:4px;font-weight:600">💰 ${days}일 × ${fmtMoney(g.dailyRate, g.currency||'KZT')}/일 = <strong>${fmtMoney(total, g.currency||'KZT')}</strong></div>`
+      : '';
+    return `
     <div class="list-row">
       <div class="row-head">
         <strong>가이드 #${i+1}</strong>
@@ -3021,20 +3028,21 @@ function renderGuideAssigns(){
         <div class="field"><label>가이드 이름 <span class="muted" style="font-weight:400;font-size:11px">(클릭하면 기존 목록)</span></label>
           <input list="guideList" value="${escapeHtml(g.guideId?(guideName(g.guideId)!=='-'?guideName(g.guideId):''):'')}" placeholder="가이드명 입력 또는 선택" onchange="_teamWorking.guideAssignments[${i}].guideId=resolveGuideByName(this.value);renderGuideAssigns()" onfocus="this.select()">
         </div>
-        <div class="field"><label>📅 담당 기간</label>
+        <div class="field"><label>📅 담당 기간 ${days?`<span class="muted" style="font-weight:400;font-size:11px">(${days}일 일함)</span>`:''}</label>
           <button type="button" class="date-pick-btn ${g.dateStart?'':'placeholder'}" onclick="openGuideAssignDateRange(${i})">${formatRangeButton(g.dateStart, g.dateEnd, '담당 기간 선택')}</button>
         </div>
       </div>
       <div class="grid3">
-        <div class="field"><label>일당</label><input type="number" min="0" value="${g.dailyRate||0}" onchange="_teamWorking.guideAssignments[${i}].dailyRate=+this.value"></div>
-        <div class="field"><label>통화</label><select onchange="_teamWorking.guideAssignments[${i}].currency=this.value">
+        <div class="field"><label>일당</label><input type="number" min="0" placeholder="0" value="${g.dailyRate > 0 ? g.dailyRate : ''}" oninput="_teamWorking.guideAssignments[${i}].dailyRate=+this.value||0;renderGuideAssigns()" onchange="_teamWorking.guideAssignments[${i}].dailyRate=+this.value||0;renderGuideAssigns()"></div>
+        <div class="field"><label>통화</label><select onchange="_teamWorking.guideAssignments[${i}].currency=this.value;renderGuideAssigns()">
           ${CURRENCIES.map(c=>`<option value="${c}" ${c===(g.currency||'KZT')?'selected':''}>${c}</option>`).join('')}</select></div>
         <div class="field"><label>지급 상태</label><select onchange="_teamWorking.guideAssignments[${i}].paid=this.value==='true'">
           <option value="false" ${!g.paid?'selected':''}>미지급</option>
           <option value="true" ${g.paid?'selected':''}>지급완료</option></select></div>
       </div>
+      ${calcHint}
     </div>
-  `).join('');
+  `;}).join('');
 }
 function addGuideAssign(){_teamWorking.guideAssignments.push({guideId:'',dateStart:'',dateEnd:'',dailyRate:0,currency:'KZT',paid:false});renderGuideAssigns()}
 function removeGuide(i){_teamWorking.guideAssignments.splice(i,1);renderGuideAssigns()}
@@ -3964,9 +3972,14 @@ function renderTeamDetail(t){
       ${roomBlocks||'<span class="muted" style="font-size:12px">객실 정보 없음</span>'}
     </div>`;
   }).join('') : '<span class="muted">-</span>';
-  const guideHtml = (t.guideAssignments||[]).map((g,gi)=>
-    `<div style="margin-bottom:4px">🧭 ${(t.guideAssignments||[]).length>1?`<strong>가이드 #${gi+1}</strong> · `:''}<strong>${escapeHtml(guideName(g.guideId))}</strong> · ${g.dateStart||'-'}~${g.dateEnd||'-'} · ${fmtMoney(g.dailyRate,g.currency)}/일 · ${g.paid?'<span class="badge confirmed">지급완료</span>':'<span class="badge unpaid">미지급</span>'}</div>`
-  ).join('') || '<span class="muted">-</span>';
+  const guideHtml = (t.guideAssignments||[]).map((g,gi)=>{
+    // 일당 × 일수 = 총 가이드비. nightsBetween+1 = 가이드가 일하는 날짜 수
+    // (예: 5/8~5/11 = 3박이지만 4일 일함)
+    const days = (g.dateStart && g.dateEnd) ? (nightsBetween(g.dateStart, g.dateEnd)+1) : 0;
+    const totalCost = (+g.dailyRate||0) * days;
+    const calcStr = (days && g.dailyRate) ? ` · <span style="color:#0369a1;font-weight:600">${days}일 × ${fmtMoney(g.dailyRate, g.currency)}/일 = ${fmtMoney(totalCost, g.currency)}</span>` : '';
+    return `<div style="margin-bottom:4px">🧭 ${(t.guideAssignments||[]).length>1?`<strong>가이드 #${gi+1}</strong> · `:''}<strong>${escapeHtml(guideName(g.guideId))}</strong> · ${g.dateStart||'-'}~${g.dateEnd||'-'}${calcStr} · ${g.paid?'<span class="badge confirmed">지급완료</span>':'<span class="badge unpaid">미지급</span>'}</div>`;
+  }).join('') || '<span class="muted">-</span>';
   const payHtml = (t.payments||[]).map(p=>`${p.date}: ${fmtMoney(p.amount,p.currency)} (${p.method||'-'})`).join('<br>') || '<span class="muted">입금 없음</span>';
   const conflictHtml = (t.conflicts||[]).filter(c=>c.ignored).map(c=>
     `<div class="conflict-banner"><strong>⚠️ 무시된 충돌:</strong> ${escapeHtml(c.message)}</div>`).join('');
