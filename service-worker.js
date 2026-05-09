@@ -1,6 +1,6 @@
 // 투어 관리 시스템 — 오프라인 지원 (Cache-first 전략)
 // 캐시 버전 변경 시 모든 사용자가 새 버전을 받음
-const CACHE = 'tour-manager-v30';
+const CACHE = 'tour-manager-v31';
 const ASSETS = [
   './',
   './index.html',
